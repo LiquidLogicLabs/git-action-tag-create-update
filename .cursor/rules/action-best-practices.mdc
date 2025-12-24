@@ -1,3 +1,7 @@
+---
+alwaysApply: true
+---
+
 # GitHub/Gitea Action Best Practices
 
 This document outlines best practices for creating GitHub/Gitea Actions based on patterns used in LiquidLogicLabs action repositories.
@@ -804,7 +808,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      - Push fixes and monitor CI again
    - **Repeat** until CI workflow passes completely (`conclusion: success`)
 
-3. **Release Tag Creation** (ONLY after steps 1 and 2 are complete):
+3. **Release Tag Creation** (ONLY after steps 1 and 2 are complete and only if explicity asked - if not prompt for permission):
    - **DO NOT** create a tag until local tests/build AND CI workflow both pass
    - If you created a tag prematurely, delete it: `git tag -d v1.2.3 && git push origin :refs/tags/v1.2.3`
    - Create semver tag: `git tag -a v1.2.3 -m "Release message"`
