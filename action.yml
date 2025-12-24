@@ -1,0 +1,69 @@
+name: 'Git Create/Update Tag'
+description: 'Create or update Git tags on local or remote repositories. Supports GitHub, Gitea, Bitbucket, and generic Git hosts with optional GPG signing.'
+author: 'LiquidLogicLabs'
+inputs:
+  tag_name:
+    description: 'Name of the tag to create/update'
+    required: true
+  tag_message:
+    description: 'Message for annotated tags. If provided, creates an annotated tag; if omitted, creates a lightweight tag'
+    required: false
+  tag_sha:
+    description: 'Commit SHA to tag (defaults to current HEAD)'
+    required: false
+  repository:
+    description: 'Repository URL or owner/repo format (defaults to current repo)'
+    required: false
+  token:
+    description: 'Authentication token (defaults to GITHUB_TOKEN)'
+    required: false
+  update_existing:
+    description: 'Whether to update existing tags (default: false)'
+    required: false
+    default: 'false'
+  gpg_sign:
+    description: 'Whether to GPG sign the tag (default: false)'
+    required: false
+    default: 'false'
+  gpg_key_id:
+    description: 'GPG key ID to use for signing'
+    required: false
+  repo_type:
+    description: "Repository type ('github', 'gitea', 'bitbucket', 'generic', 'auto'). Default: 'auto' (auto-detect from repository URL)"
+    required: false
+    default: 'auto'
+  base_url:
+    description: 'Base URL for self-hosted instances'
+    required: false
+  ignore_cert_errors:
+    description: 'Ignore SSL certificate errors (default: false)'
+    required: false
+    default: 'false'
+  force:
+    description: 'Force update even if tag exists (default: false)'
+    required: false
+    default: 'false'
+  verbose:
+    description: 'Enable verbose/debug logging (default: false)'
+    required: false
+    default: 'false'
+outputs:
+  tag_name:
+    description: 'Name of the tag that was created/updated'
+  tag_sha:
+    description: 'SHA of the commit that was tagged'
+  tag_exists:
+    description: 'Whether the tag already existed (true/false)'
+  tag_updated:
+    description: 'Whether an existing tag was updated (true/false)'
+  tag_created:
+    description: 'Whether a new tag was created (true/false)'
+  platform:
+    description: 'Detected or specified platform (same as repo_type input or detected value)'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+branding:
+  icon: 'tag'
+  color: 'blue'
+

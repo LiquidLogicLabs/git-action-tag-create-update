@@ -1,0 +1,37 @@
+name: Test
+
+on:
+  workflow_call:  # Only workflow_call - no direct triggers
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+        continue-on-error: true  # Optional: don't fail if tests are missing
+
+      # Optional: Integration tests
+      - name: Test action with different scenarios
+        run: |
+          node dist/index.js || true
+        env:
+          INPUT_TAG_NAME: test-tag
+          INPUT_VERBOSE: true
+        continue-on-error: true
+

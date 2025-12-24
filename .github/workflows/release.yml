@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Semver tags only
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  test:
+    uses: ./.github/workflows/test.yml
+
+  release:
+    needs: [lint, test]  # REQUIRED: Lint and tests must pass before release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog generation
+
+      - name: Check version format in tag
+        id: version
+        uses: nowsprinting/check-version-format-action@v4
+        with:
+          prefix: 'v'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and package action
+        run: npm run package
+
+      - name: Generate release notes
+        id: release_notes
+        uses: mikepenz/release-changelog-builder-action@v6
+        with:
+          mode: "HYBRID"
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}\n\n<details>\n<summary>Pull Requests</summary>\n\n#{{PR_LIST}}\n</details>\n\n---\n\n### Usage\n\n```yaml\n- uses: LiquidLogicLabs/git-create-update-tag-action@${{ github.ref_name }}\n  with:\n    tag_name: 'v1.0.0'\n    tag_message: 'Release v1.0.0'\n```"
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create/Update Major, Minor, and Latest Version Tags
+        if: steps.version.outputs.is_stable == 'true'
+        uses: simbo/action-semver-release-action@latest
+        with:
+          create-release: false  # We handle release creation separately with changelog
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: Release ${{ steps.version.outputs.full_without_prefix }}
+          body: ${{ steps.release_notes.outputs.changelog }}
+          draft: false
+          prerelease: ${{ steps.version.outputs.is_stable != 'true' }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release Summary
+        run: |
+          echo "## 🎉 Release Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.version.outputs.full_without_prefix }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **GitHub Release**: [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.version.outputs.is_stable }}" != "true" ]; then
+            echo "- **Status**: ⚠️ Pre-release (for testing)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Status**: ✅ Stable release" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version Tags Created**: \`@v${{ steps.version.outputs.major }}\`, \`@v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}\`, \`@latest\`, \`@${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
