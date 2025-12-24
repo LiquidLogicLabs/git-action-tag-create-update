@@ -779,10 +779,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Release Process
 
+### Pre-Release Checklist (REQUIRED)
+
+**CRITICAL**: Never create a release tag until ALL of the following are complete:
+
+1. **Local Testing Phase** (MUST complete successfully):
+   - Run `npm test` - All tests must pass
+   - Run `npm run build` - Build must complete without errors
+   - Run `npm run lint` - Linting must pass with no errors
+   - **Fix any issues** found in tests, build, or linting
+   - **Repeat** until all local checks pass
+
+2. **CI Verification Phase** (MUST complete successfully):
+   - Push changes to main branch: `git push`
+   - **Monitor CI workflow** using one of these methods:
+     - **GitHub Web UI**: Navigate to Actions tab and watch the workflow run
+     - **GitHub API**: Use `curl` or MCP tools to check workflow status
+     - **MCP Gitea tools**: If using Gitea, use `mcp_gitea_list_repo_action_runs` and `mcp_gitea_get_repo_action_run` to monitor
+   - Wait for CI workflow to complete (status: `completed`, conclusion: `success`)
+   - **If CI fails**: 
+     - Check job logs to identify the failure
+     - Fix issues locally (return to step 1)
+     - Repeat local testing until all issues are resolved
+     - Push fixes and monitor CI again
+   - **Repeat** until CI workflow passes completely (`conclusion: success`)
+
+3. **Release Tag Creation** (ONLY after steps 1 and 2 are complete):
+   - **DO NOT** create a tag until local tests/build AND CI workflow both pass
+   - If you created a tag prematurely, delete it: `git tag -d v1.2.3 && git push origin :refs/tags/v1.2.3`
+   - Create semver tag: `git tag -a v1.2.3 -m "Release message"`
+   - Push tag: `git push origin v1.2.3`
+   - Release workflow will automatically run (it will also run lint and tests as a safety check)
+
+### Standard Release Workflow
+
 1. **Commit changes** to main branch (optionally update CHANGELOG.md if you maintain one)
-2. **Create semver tag**: `git tag v1.2.3`
-3. **Push tag**: `git push origin v1.2.3`
-4. **Release workflow** automatically:
+2. **Follow Pre-Release Checklist above** (local tests → CI verification → tag creation)
+3. **Create semver tag**: `git tag -a v1.2.3 -m "Release message"` (ONLY after CI passes)
+4. **Push tag**: `git push origin v1.2.3`
+5. **Release workflow** automatically:
    - **Runs lint and tests** (lint job + reusable `test.yml` workflow) - **MUST pass before release**
    - Validates version format using `check-version-format-action`
    - **For Node.js actions**: Builds and packages the action
@@ -891,4 +926,6 @@ Use `mikepenz/release-changelog-builder-action@v6` to:
    - Validate before releasing (lint + tests + build validation)
    - For Node.js actions: build and package before release
    - For composite actions: validate `action.yml` and shell script syntax
+   - **ALWAYS follow the Pre-Release Checklist**: Local tests → CI verification → Tag creation (in that order)
+   - **NEVER create a release tag until both local tests AND CI workflow pass successfully**
 8. **Attribution**: Credit original authors when extending existing work
