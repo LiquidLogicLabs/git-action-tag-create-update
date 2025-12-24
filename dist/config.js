@@ -88,6 +88,7 @@ function getInputs() {
     const ignoreCertErrors = getBooleanInput('ignore_cert_errors', false);
     const force = getBooleanInput('force', false);
     const verbose = getBooleanInput('verbose', false);
+    const pushTag = getBooleanInput('push_tag', true);
     // Validate GPG signing requirements
     if (gpgSign && !tagMessage) {
         throw new Error('gpg_sign requires tag_message (GPG signing only works with annotated tags)');
@@ -118,7 +119,8 @@ function getInputs() {
         baseUrl,
         ignoreCertErrors,
         force,
-        verbose
+        verbose,
+        pushTag
     };
 }
 //# sourceMappingURL=config.js.map

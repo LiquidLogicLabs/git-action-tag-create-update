@@ -1,1 +1,1 @@
-{"version":3,"file":"","sourceRoot":"","sources":["file:///home/ravenwolf.org/sanderson/source/git/LiquidLogicLabs/actions/git-create-update-tag-action/src/config.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,YAAY,EAAY,MAAM,SAAS,CAAC;AAmCjD;;GAEG;AACH,wBAAgB,SAAS,IAAI,YAAY,CA6DxC"}
+{"version":3,"file":"config.d.ts","sourceRoot":"","sources":["../src/config.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,YAAY,EAAY,MAAM,SAAS,CAAC;AAmCjD;;GAEG;AACH,wBAAgB,SAAS,IAAI,YAAY,CA+DxC"}

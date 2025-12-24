@@ -20,6 +20,7 @@ function createPlatformAPI(
     baseUrl?: string;
     ignoreCertErrors: boolean;
     verbose: boolean;
+    pushTag?: boolean;
   },
   logger: Logger
 ): PlatformAPI {
@@ -28,7 +29,8 @@ function createPlatformAPI(
     baseUrl: config.baseUrl,
     token: config.token,
     ignoreCertErrors: config.ignoreCertErrors,
-    verbose: config.verbose
+    verbose: config.verbose,
+    pushTag: config.pushTag
   };
 
   switch (repoType) {
@@ -98,9 +100,10 @@ async function run(): Promise<void> {
       logger.info('Using local Git CLI');
       result = await createTag(tagOptions, logger);
 
-      // Push to remote if we have a remote configured
-      if (repoInfo.url) {
+      // Push to remote if push_tag is enabled and we have a remote configured
+      if (inputs.pushTag && repoInfo.url) {
         try {
+          logger.info(`Pushing tag ${inputs.tagName} to remote`);
           await pushTag(
             inputs.tagName,
             'origin',
@@ -108,9 +111,12 @@ async function run(): Promise<void> {
             inputs.force,
             logger
           );
+          logger.info(`Tag ${inputs.tagName} pushed successfully`);
         } catch (error) {
           logger.warning(`Failed to push tag: ${error}`);
         }
+      } else if (!inputs.pushTag) {
+        logger.debug('push_tag is false, skipping tag push');
       }
     } else {
       // Use platform API
@@ -139,7 +145,8 @@ async function run(): Promise<void> {
           token: inputs.token,
           baseUrl,
           ignoreCertErrors: inputs.ignoreCertErrors,
-          verbose: inputs.verbose
+          verbose: inputs.verbose,
+          pushTag: inputs.pushTag
         },
         logger
       );

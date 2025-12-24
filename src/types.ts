@@ -25,6 +25,7 @@ export interface ActionInputs {
   ignoreCertErrors: boolean;
   force: boolean;
   verbose: boolean;
+  pushTag: boolean;
 }
 
 /**
@@ -48,6 +49,7 @@ export interface PlatformConfig {
   token?: string;
   ignoreCertErrors: boolean;
   verbose: boolean;
+  pushTag?: boolean;
 }
 
 /**

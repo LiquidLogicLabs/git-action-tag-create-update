@@ -63,6 +63,7 @@ export function getInputs(): ActionInputs {
   const ignoreCertErrors = getBooleanInput('ignore_cert_errors', false);
   const force = getBooleanInput('force', false);
   const verbose = getBooleanInput('verbose', false);
+  const pushTag = getBooleanInput('push_tag', true);
 
   // Validate GPG signing requirements
   if (gpgSign && !tagMessage) {
@@ -96,7 +97,8 @@ export function getInputs(): ActionInputs {
     baseUrl,
     ignoreCertErrors,
     force,
-    verbose
+    verbose,
+    pushTag
   };
 }
 

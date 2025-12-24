@@ -36,15 +36,20 @@ class GenericGitAPI {
             ...options,
             sha
         }, this.logger);
-        // Push to remote if we have repository info
-        if (this.repoInfo.url) {
+        // Push to remote if pushTag is enabled and we have repository info
+        if (this.config.pushTag !== false && this.repoInfo.url) {
             try {
+                this.logger.info(`Pushing tag ${options.tagName} to remote`);
                 await (0, git_1.pushTag)(options.tagName, 'origin', this.config.token, options.force, this.logger);
+                this.logger.info(`Tag ${options.tagName} pushed successfully`);
             }
             catch (error) {
                 this.logger.warning(`Failed to push tag to remote: ${error}`);
                 // Continue anyway - tag was created locally
             }
+        }
+        else if (this.config.pushTag === false) {
+            this.logger.debug('push_tag is false, skipping tag push');
         }
         return result;
     }

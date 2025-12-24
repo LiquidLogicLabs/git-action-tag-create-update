@@ -128,6 +128,17 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
     token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
+### Create Tag Without Pushing
+
+```yaml
+- name: Create tag locally without pushing
+  uses: LiquidLogicLabs/git-create-update-tag-action@v1
+  with:
+    tag_name: 'v1.0.0'
+    tag_message: 'Release version 1.0.0'
+    push_tag: false
+```
+
 ### Verbose Logging
 
 ```yaml
@@ -156,6 +167,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 | `ignore_cert_errors` | Ignore SSL certificate errors (default: false) | No | `false` |
 | `force` | Force update even if tag exists (default: false) | No | `false` |
 | `verbose` | Enable verbose/debug logging (default: false) | No | `false` |
+| `push_tag` | Push the tag to the remote repository after creating/updating (default: true). Only applies when using local Git CLI. | No | `true` |
 
 ## Outputs
 

@@ -23,6 +23,7 @@ export interface ActionInputs {
     ignoreCertErrors: boolean;
     force: boolean;
     verbose: boolean;
+    pushTag: boolean;
 }
 /**
  * Action outputs
@@ -44,6 +45,7 @@ export interface PlatformConfig {
     token?: string;
     ignoreCertErrors: boolean;
     verbose: boolean;
+    pushTag?: boolean;
 }
 /**
  * Repository information
@@ -106,3 +108,4 @@ export interface HttpClientOptions {
     ignoreCertErrors: boolean;
     verbose: boolean;
 }
+//# sourceMappingURL=types.d.ts.map

@@ -16,3 +16,4 @@ export declare function detectPlatform(repoType: RepoType, repositoryInfo: Repos
  * Get full repository information
  */
 export declare function getRepositoryInfo(repository: string | undefined, repoType: RepoType, logger: Logger): Promise<RepositoryInfo>;
+//# sourceMappingURL=platform-detector.d.ts.map

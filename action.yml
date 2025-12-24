@@ -47,6 +47,10 @@ inputs:
     description: 'Enable verbose/debug logging (default: false)'
     required: false
     default: 'false'
+  push_tag:
+    description: 'Push the tag to the remote repository after creating/updating (default: true). Only applies when using local Git CLI.'
+    required: false
+    default: 'true'
 outputs:
   tag_name:
     description: 'Name of the tag that was created/updated'
