@@ -132,23 +132,28 @@ async function run(): Promise<void> {
             baseUrl = 'https://api.github.com';
             break;
           case 'gitea':
-            // For Gitea, try to detect from repository URL or use default
+            // For Gitea, try to detect from repository URL first
             if (repoInfo.url) {
               try {
                 const url = new URL(repoInfo.url);
                 baseUrl = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}/api/v1`;
                 logger.debug(`Detected Gitea base URL from repository URL: ${baseUrl}`);
-              } catch {
-                baseUrl = 'https://gitea.com/api/v1';
+              } catch (error) {
+                // If URL parsing fails, fall through to environment variable checks
+                logger.debug(`Failed to parse repository URL: ${repoInfo.url}, will try environment variables`);
               }
-            } else {
-              // Try to get from Gitea server URL environment variable
-              const giteaServerUrl = process.env.GITEA_SERVER_URL || process.env.GITEA_API_URL;
-              if (giteaServerUrl) {
-                baseUrl = `${giteaServerUrl.replace(/\/$/, '')}/api/v1`;
+            }
+            
+            // If not set from repository URL, try environment variables
+            if (!baseUrl) {
+              // GITHUB_SERVER_URL is provided by both GitHub Actions and Gitea Actions
+              const serverUrl = process.env.GITHUB_SERVER_URL || process.env.GITEA_SERVER_URL || process.env.GITEA_API_URL;
+              if (serverUrl) {
+                baseUrl = `${serverUrl.replace(/\/$/, '')}/api/v1`;
                 logger.debug(`Using Gitea base URL from environment: ${baseUrl}`);
               } else {
                 baseUrl = 'https://gitea.com/api/v1';
+                logger.debug('Using default Gitea base URL: https://gitea.com/api/v1');
               }
             }
             break;
