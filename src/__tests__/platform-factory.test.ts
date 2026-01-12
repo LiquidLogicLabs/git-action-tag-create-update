@@ -18,14 +18,22 @@ describe('platform-factory', () => {
     pushTag: false
   };
 
+  const originalEnv = process.env;
+
   beforeEach(() => {
     jest.clearAllMocks();
     // Mock git exec to return no origin URL (simulate no git remote)
     (exec.exec as jest.Mock).mockRejectedValue(new Error('No remote origin'));
+    // Clear environment variables that might affect platform detection
+    process.env = { ...originalEnv };
+    delete process.env.GITHUB_SERVER_URL;
+    delete process.env.GITEA_SERVER_URL;
+    delete process.env.GITEA_API_URL;
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+    process.env = originalEnv;
   });
 
   it('selects platform by hostname first (github.com)', async () => {
