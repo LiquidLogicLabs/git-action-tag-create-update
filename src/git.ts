@@ -249,14 +249,15 @@ export async function createTag(
 
   // Create tag
   if (normalizedMessage) {
-    logger.logGitCommand('git tag', tagArgs);
+    logger.debug(`Git command: git tag ${tagArgs.join(' ')}`);
     await exec.exec('git', ['tag', ...tagArgs], {
       input: Buffer.from(normalizedMessage),
       silent: !options.verbose
     });
   } else {
     // Lightweight tag
-    logger.logGitCommand('git tag', [tagName, ...(sha ? [sha] : [])]);
+    const lightweightArgs = [tagName, ...(sha ? [sha] : [])];
+    logger.debug(`Git command: git tag ${lightweightArgs.join(' ')}`);
     await exec.exec('git', ['tag', tagName, ...(sha ? [sha] : [])], {
       silent: !options.verbose
     });
@@ -320,7 +321,7 @@ export async function pushTag(
     pushArgs.push('--force');
   }
 
-  logger.logGitCommand('git', pushArgs);
+  logger.debug(`Git command: git ${pushArgs.join(' ')}`);
   await exec.exec('git', pushArgs, {
     silent: false // Show output for push operations
   });
@@ -403,7 +404,7 @@ export async function deleteTagRemote(
     }
   }
 
-  logger.logGitCommand('git', ['push', remote, '--delete', tagName]);
+  logger.debug(`Git command: git push ${remote} --delete ${tagName}`);
   await exec.exec('git', ['push', remote, '--delete', tagName], {
     silent: true
   });

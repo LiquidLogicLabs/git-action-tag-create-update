@@ -26069,7 +26069,7 @@ async function createTag(options, logger) {
     }
     // Create tag
     if (normalizedMessage) {
-        logger.logGitCommand('git tag', tagArgs);
+        logger.debug(`Git command: git tag ${tagArgs.join(' ')}`);
         await exec.exec('git', ['tag', ...tagArgs], {
             input: Buffer.from(normalizedMessage),
             silent: !options.verbose
@@ -26077,7 +26077,8 @@ async function createTag(options, logger) {
     }
     else {
         // Lightweight tag
-        logger.logGitCommand('git tag', [tagName, ...(sha ? [sha] : [])]);
+        const lightweightArgs = [tagName, ...(sha ? [sha] : [])];
+        logger.debug(`Git command: git tag ${lightweightArgs.join(' ')}`);
         await exec.exec('git', ['tag', tagName, ...(sha ? [sha] : [])], {
             silent: !options.verbose
         });
@@ -26128,7 +26129,7 @@ async function pushTag(tagName, remote, token, force, logger) {
     if (force) {
         pushArgs.push('--force');
     }
-    logger.logGitCommand('git', pushArgs);
+    logger.debug(`Git command: git ${pushArgs.join(' ')}`);
     await exec.exec('git', pushArgs, {
         silent: false // Show output for push operations
     });
@@ -26199,7 +26200,7 @@ async function deleteTagRemote(tagName, remote, token, logger) {
             });
         }
     }
-    logger.logGitCommand('git', ['push', remote, '--delete', tagName]);
+    logger.debug(`Git command: git push ${remote} --delete ${tagName}`);
     await exec.exec('git', ['push', remote, '--delete', tagName], {
         silent: true
     });
@@ -26656,48 +26657,6 @@ class Logger {
         }
         else {
             core.debug(message);
-        }
-    }
-    /**
-     * Log a verbose message (only if verbose is enabled)
-     */
-    logVerbose(message) {
-        if (this.verbose) {
-            core.info(`[VERBOSE] ${message}`);
-        }
-    }
-    /**
-     * Log an HTTP request (only if verbose is enabled)
-     */
-    logRequest(method, url, headers) {
-        if (this.verbose) {
-            this.debug(`HTTP ${method} ${url}`);
-            if (headers) {
-                const sanitizedHeaders = { ...headers };
-                if (sanitizedHeaders.Authorization) {
-                    sanitizedHeaders.Authorization = '***';
-                }
-                this.debug(`Headers: ${JSON.stringify(sanitizedHeaders, null, 2)}`);
-            }
-        }
-    }
-    /**
-     * Log an HTTP response (only if verbose is enabled)
-     */
-    logResponse(status, statusText, body) {
-        if (this.verbose) {
-            this.debug(`HTTP Response: ${status} ${statusText}`);
-            if (body) {
-                this.debug(`Response body: ${JSON.stringify(body, null, 2)}`);
-            }
-        }
-    }
-    /**
-     * Log a Git command (only if verbose is enabled)
-     */
-    logGitCommand(command, args) {
-        if (this.verbose) {
-            this.debug(`Git command: ${command} ${args.join(' ')}`);
         }
     }
 }
@@ -27538,7 +27497,15 @@ class HttpClient {
         if (this.token) {
             headers['Authorization'] = `token ${this.token}`;
         }
-        this.logger.logRequest(method, url, headers);
+        // Log HTTP request (only if verbose is enabled)
+        this.logger.debug(`HTTP ${method} ${url}`);
+        if (this.logger.verbose && headers) {
+            const sanitizedHeaders = { ...headers };
+            if (sanitizedHeaders.Authorization) {
+                sanitizedHeaders.Authorization = '***';
+            }
+            this.logger.debug(`Headers: ${JSON.stringify(sanitizedHeaders, null, 2)}`);
+        }
         // Configure fetch with certificate error handling
         const fetchOptions = {
             method,
@@ -27560,7 +27527,11 @@ class HttpClient {
             catch {
                 responseBody = responseText;
             }
-            this.logger.logResponse(response.status, response.statusText, responseBody);
+            // Log HTTP response (only if verbose is enabled)
+            this.logger.debug(`HTTP Response: ${response.status} ${response.statusText}`);
+            if (this.logger.verbose && responseBody) {
+                this.logger.debug(`Response body: ${JSON.stringify(responseBody, null, 2)}`);
+            }
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status} ${response.statusText}: ${JSON.stringify(responseBody)}`);
             }

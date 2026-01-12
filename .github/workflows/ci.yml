@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: ['**']  # Only match branches (tags are handled by release workflow)
+    branches: ['**']
+    tags-ignore: ['**']  # Ignore tag pushes (handled by release workflow)
   pull_request:
     branches: ['**']
   workflow_call:  # Allow CI to be called by release workflow

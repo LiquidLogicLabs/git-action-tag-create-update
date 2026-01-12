@@ -35,7 +35,15 @@ export class HttpClient {
       headers['Authorization'] = `token ${this.token}`;
     }
 
-    this.logger.logRequest(method, url, headers);
+    // Log HTTP request (only if verbose is enabled)
+    this.logger.debug(`HTTP ${method} ${url}`);
+    if (this.logger.verbose && headers) {
+      const sanitizedHeaders = { ...headers };
+      if (sanitizedHeaders.Authorization) {
+        sanitizedHeaders.Authorization = '***';
+      }
+      this.logger.debug(`Headers: ${JSON.stringify(sanitizedHeaders, null, 2)}`);
+    }
 
     // Configure fetch with certificate error handling
     const fetchOptions: RequestInit = {
@@ -62,7 +70,11 @@ export class HttpClient {
         responseBody = responseText;
       }
 
-      this.logger.logResponse(response.status, response.statusText, responseBody);
+      // Log HTTP response (only if verbose is enabled)
+      this.logger.debug(`HTTP Response: ${response.status} ${response.statusText}`);
+      if (this.logger.verbose && responseBody) {
+        this.logger.debug(`Response body: ${JSON.stringify(responseBody, null, 2)}`);
+      }
 
       if (!response.ok) {
         throw new Error(

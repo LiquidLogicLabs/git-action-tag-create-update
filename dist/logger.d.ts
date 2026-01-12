@@ -21,20 +21,4 @@ export declare class Logger {
      * Falls back to core.debug() when verbose is false (for when ACTIONS_STEP_DEBUG is set at workflow level)
      */
     debug(message: string): void;
-    /**
-     * Log a verbose message (only if verbose is enabled)
-     */
-    logVerbose(message: string): void;
-    /**
-     * Log an HTTP request (only if verbose is enabled)
-     */
-    logRequest(method: string, url: string, headers?: Record<string, string>): void;
-    /**
-     * Log an HTTP response (only if verbose is enabled)
-     */
-    logResponse(status: number, statusText: string, body?: unknown): void;
-    /**
-     * Log a Git command (only if verbose is enabled)
-     */
-    logGitCommand(command: string, args: string[]): void;
 }
