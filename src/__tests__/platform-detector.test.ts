@@ -12,10 +12,7 @@ const mockLogger = {
   info: jest.fn(),
   warning: jest.fn(),
   error: jest.fn(),
-  logRequest: jest.fn(),
-  logResponse: jest.fn(),
-  logGitCommand: jest.fn(),
-  logVerbose: jest.fn()
+  verbose: false
 } as unknown as Logger;
 
 describe('parseRepository', () => {
@@ -68,14 +65,14 @@ describe('parseRepository', () => {
     });
   });
 
+  it('should return auto platform for unknown URLs', () => {
+    const result = parseRepository('https://git.ravenwolf.org/owner/repo', mockLogger);
+    expect(result?.platform).toBe('auto');
+  });
+
   it('should return undefined for invalid format', () => {
     const result = parseRepository('invalid', mockLogger);
     expect(result).toBeUndefined();
-  });
-
-  it('should handle GitHub Enterprise URL', () => {
-    const result = parseRepository('https://github.enterprise.com/owner/repo', mockLogger);
-    expect(result?.platform).toBe('github');
   });
 });
 
@@ -95,24 +92,29 @@ describe('detectPlatform', () => {
     expect(result).toBe('gitea');
   });
 
-  it('should detect GitHub from GITHUB_REPOSITORY env', () => {
-    const originalEnv = process.env.GITHUB_REPOSITORY;
-    process.env.GITHUB_REPOSITORY = 'owner/repo';
-
-    const result = detectPlatform('auto', undefined, mockLogger);
-    expect(result).toBe('github');
-
-    process.env.GITHUB_REPOSITORY = originalEnv;
-  });
 
   it('should fallback to generic', () => {
-    const originalEnv = process.env.GITHUB_REPOSITORY;
+    const originalGithubRepo = process.env.GITHUB_REPOSITORY;
+    const originalGiteaRepo = process.env.GITEA_REPOSITORY;
+    const originalGithubServerUrl = process.env.GITHUB_SERVER_URL;
+    const originalGiteaServerUrl = process.env.GITEA_SERVER_URL;
+    const originalGiteaApiUrl = process.env.GITEA_API_URL;
+    
+    // Ensure all environment variables are cleared
     delete process.env.GITHUB_REPOSITORY;
+    delete process.env.GITEA_REPOSITORY;
+    delete process.env.GITHUB_SERVER_URL;
+    delete process.env.GITEA_SERVER_URL;
+    delete process.env.GITEA_API_URL;
 
     const result = detectPlatform('auto', undefined, mockLogger);
     expect(result).toBe('generic');
 
-    process.env.GITHUB_REPOSITORY = originalEnv;
+    if (originalGithubRepo) process.env.GITHUB_REPOSITORY = originalGithubRepo;
+    if (originalGiteaRepo) process.env.GITEA_REPOSITORY = originalGiteaRepo;
+    if (originalGithubServerUrl) process.env.GITHUB_SERVER_URL = originalGithubServerUrl;
+    if (originalGiteaServerUrl) process.env.GITEA_SERVER_URL = originalGiteaServerUrl;
+    if (originalGiteaApiUrl) process.env.GITEA_API_URL = originalGiteaApiUrl;
   });
 });
 
@@ -143,7 +145,17 @@ describe('getRepositoryInfo', () => {
   });
 
   it('should use GITHUB_REPOSITORY if no repository provided', async () => {
+    const originalGiteaRepo = process.env.GITEA_REPOSITORY;
+    const originalGiteaServerUrl = process.env.GITEA_SERVER_URL;
+    const originalGithubServerUrl = process.env.GITHUB_SERVER_URL;
+    
+    // Ensure Gitea variables are not set
+    delete process.env.GITEA_REPOSITORY;
+    delete process.env.GITEA_SERVER_URL;
+    delete process.env.GITEA_API_URL;
     process.env.GITHUB_REPOSITORY = 'owner/repo';
+    delete process.env.GITHUB_SERVER_URL; // Not set or set to github.com
+    
     (io.which as jest.Mock).mockResolvedValue('/usr/bin/git');
     (exec.exec as jest.Mock).mockResolvedValue(0);
 
@@ -152,6 +164,10 @@ describe('getRepositoryInfo', () => {
     expect(result.owner).toBe('owner');
     expect(result.repo).toBe('repo');
     expect(result.platform).toBe('github');
+    
+    if (originalGiteaRepo) process.env.GITEA_REPOSITORY = originalGiteaRepo;
+    if (originalGiteaServerUrl) process.env.GITEA_SERVER_URL = originalGiteaServerUrl;
+    if (originalGithubServerUrl) process.env.GITHUB_SERVER_URL = originalGithubServerUrl;
   });
 
   it('should throw error if no repository info available', async () => {

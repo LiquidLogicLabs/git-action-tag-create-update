@@ -1,4 +1,4 @@
-import { PlatformAPI, TagOptions, TagResult, RepositoryInfo, PlatformConfig } from '../types';
+import { PlatformAPI, TagOptions, TagResult, RepositoryInfo, PlatformConfig, RepoType } from '../types';
 import { Logger } from '../logger';
 /**
  * Generic Git CLI platform implementation
@@ -30,4 +30,7 @@ export declare class GenericGitAPI implements PlatformAPI {
      */
     getHeadSha(): Promise<string>;
 }
+export declare function detectFromUrlByHostname(_url: URL): RepoType | undefined;
+export declare function detectFromUrl(_url: URL, _logger: Logger): Promise<RepoType | undefined>;
+export declare function determineBaseUrl(_urls: string | string[]): string | undefined;
 //# sourceMappingURL=generic.d.ts.map

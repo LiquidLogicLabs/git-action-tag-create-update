@@ -1,4 +1,4 @@
-import { PlatformAPI, TagOptions, TagResult, RepositoryInfo, PlatformConfig } from '../types';
+import { PlatformAPI, TagOptions, TagResult, RepositoryInfo, PlatformConfig, RepoType } from '../types';
 import { Logger } from '../logger';
 /**
  * GitHub API client
@@ -29,4 +29,7 @@ export declare class GitHubAPI implements PlatformAPI {
      */
     getHeadSha(): Promise<string>;
 }
+export declare function detectFromUrlByHostname(url: URL): RepoType | undefined;
+export declare function detectFromUrl(url: URL, logger: Logger): Promise<RepoType | undefined>;
+export declare function determineBaseUrl(urls: string | string[]): string | undefined;
 //# sourceMappingURL=github.d.ts.map

@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GenericGitAPI = void 0;
+exports.detectFromUrlByHostname = detectFromUrlByHostname;
+exports.detectFromUrl = detectFromUrl;
+exports.determineBaseUrl = determineBaseUrl;
 const git_1 = require("../git");
 /**
  * Generic Git CLI platform implementation
@@ -95,4 +98,16 @@ class GenericGitAPI {
     }
 }
 exports.GenericGitAPI = GenericGitAPI;
+function detectFromUrlByHostname(_url) {
+    // Generic detection does not detect from hostname
+    return undefined;
+}
+async function detectFromUrl(_url, _logger) {
+    // Generic detection does not probe; factory will fall back to generic when others do not match.
+    return undefined;
+}
+function determineBaseUrl(_urls) {
+    // Generic Git does not need a base URL
+    return undefined;
+}
 //# sourceMappingURL=generic.js.map

@@ -1,20 +1,20 @@
 /**
- * E2E tests for Bitbucket platform
- * Tests the full action workflow with real Bitbucket API calls
+ * E2E tests for Gitea platform
+ * Tests the full action workflow with real Gitea API calls
  * 
  * Required environment variables:
- * - TEST_BITBUCKET_REPOSITORY: Repository in owner/repo format (e.g., "owner/repo")
- * - TEST_BITBUCKET_TOKEN: Bitbucket app password or access token
- * - TEST_BITBUCKET_BASE_URL: Bitbucket base URL (optional, defaults to cloud)
+ * - TEST_GITEA_REPOSITORY: Repository in owner/repo format (e.g., "owner/repo")
+ * - TEST_GITEA_TOKEN: Gitea personal access token with repo scope
+ * - TEST_GITEA_BASE_URL: Gitea base URL (e.g., "https://gitea.com/api/v1" or custom server)
  * - TEST_TAG_PREFIX: Prefix for test tags (default: "test-")
  */
 
 import * as core from '@actions/core';
 import * as exec from '@actions/exec';
-import { run } from '../index';
-import { BitbucketAPI } from '../platforms/bitbucket';
-import { Logger } from '../logger';
-import { RepositoryInfo, PlatformConfig } from '../types';
+import { run } from '../../index';
+import { GiteaAPI } from '../../platforms/gitea';
+import { Logger } from '../../logger';
+import { RepositoryInfo, PlatformConfig } from '../../types';
 
 jest.mock('@actions/core', () => ({
   getInput: jest.fn(),
@@ -28,24 +28,28 @@ jest.mock('@actions/core', () => ({
   setSecret: jest.fn()
 }));
 
-describe('Bitbucket E2E Tests', () => {
-  const repository = process.env.TEST_BITBUCKET_REPOSITORY;
-  const token = process.env.TEST_BITBUCKET_TOKEN;
-  const baseUrl = process.env.TEST_BITBUCKET_BASE_URL || 'https://api.bitbucket.org/2.0';
+describe('Gitea E2E Tests', () => {
+  const repository = process.env.TEST_GITEA_REPOSITORY;
+  const token = process.env.TEST_GITEA_TOKEN;
+  const baseUrl = process.env.TEST_GITEA_BASE_URL || 'https://gitea.com/api/v1';
   const tagPrefix = process.env.TEST_TAG_PREFIX || 'test-';
   const uniqueId = Date.now().toString();
   
   let testTagName: string;
-  let api: BitbucketAPI;
+  let api: GiteaAPI;
   let repoInfo: RepositoryInfo;
   let repoUrl: string;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   beforeAll(() => {
     // Prevent action from auto-running when imported
     process.env.SKIP_RUN = 'true';
     
     if (!repository || !token) {
-      console.log('⚠️ Skipping Bitbucket E2E tests: TEST_BITBUCKET_REPOSITORY or TEST_BITBUCKET_TOKEN not set');
+      console.log('⚠️ Skipping Gitea E2E tests: TEST_GITEA_REPOSITORY or TEST_GITEA_TOKEN not set');
       return;
     }
 
@@ -54,19 +58,20 @@ describe('Bitbucket E2E Tests', () => {
       throw new Error(`Invalid repository format: ${repository}. Expected "owner/repo"`);
     }
 
+    // Extract host from base URL
     const urlMatch = baseUrl.match(/^(https?:\/\/[^/]+)/);
-    const host = urlMatch ? urlMatch[1].replace('api.', '') : 'https://bitbucket.org';
+    const host = urlMatch ? urlMatch[1] : 'https://gitea.com';
     repoUrl = `${host}/${owner}/${repo}.git`;
 
     repoInfo = {
       owner,
       repo,
-      platform: 'bitbucket',
+      platform: 'gitea',
       url: repoUrl
     };
 
     const config: PlatformConfig = {
-      type: 'bitbucket',
+      type: 'gitea',
       token,
       baseUrl,
       ignoreCertErrors: false,
@@ -75,7 +80,7 @@ describe('Bitbucket E2E Tests', () => {
     };
 
     const logger = new Logger(true);
-    api = new BitbucketAPI(repoInfo, config, logger);
+    api = new GiteaAPI(repoInfo, config, logger);
     testTagName = `${tagPrefix}${uniqueId}`;
   });
 
@@ -89,13 +94,13 @@ describe('Bitbucket E2E Tests', () => {
     }
   });
 
-  it('should create a new tag via Bitbucket API', async () => {
+  it('should create a new tag via Gitea API', async () => {
     if (!repository || !token) {
       return;
     }
 
     const tagName = `${testTagName}-create`;
-    const commitSha = await getLatestCommitSha(repoInfo, repoUrl);
+    const commitSha = await getLatestCommitSha(repoInfo, repoUrl, token);
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
@@ -110,7 +115,7 @@ describe('Bitbucket E2E Tests', () => {
         case 'token':
           return token;
         case 'repo_type':
-          return 'bitbucket';
+          return 'gitea';
         case 'base_url':
           return baseUrl;
         default:
@@ -126,18 +131,18 @@ describe('Bitbucket E2E Tests', () => {
 
     expect(core.setOutput).toHaveBeenCalledWith('tag_name', tagName);
     expect(core.setOutput).toHaveBeenCalledWith('tag_created', 'true');
-    expect(core.setOutput).toHaveBeenCalledWith('platform', 'bitbucket');
+    expect(core.setOutput).toHaveBeenCalledWith('platform', 'gitea');
 
     await api.deleteTag(tagName);
   });
 
-  it('should update an existing tag via Bitbucket API', async () => {
+  it('should update an existing tag via Gitea API', async () => {
     if (!repository || !token) {
       return;
     }
 
     const tagName = `${testTagName}-update`;
-    const commitSha = await getLatestCommitSha(repoInfo, repoUrl);
+    const commitSha = await getLatestCommitSha(repoInfo, repoUrl, token);
 
     await api.createTag({
       tagName,
@@ -147,6 +152,10 @@ describe('Bitbucket E2E Tests', () => {
       force: false,
       verbose: false
     });
+
+    const preExists = await api.tagExists(tagName);
+    expect(preExists).toBe(true);
+    console.log(`Pre-update tagExists for ${tagName}: ${preExists}`);
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
@@ -161,7 +170,7 @@ describe('Bitbucket E2E Tests', () => {
         case 'token':
           return token;
         case 'repo_type':
-          return 'bitbucket';
+          return 'gitea';
         case 'base_url':
           return baseUrl;
         case 'update_existing':
@@ -178,14 +187,33 @@ describe('Bitbucket E2E Tests', () => {
 
     await run();
 
+    const postExists = await api.tagExists(tagName);
+    console.log(`Post-update tagExists for ${tagName}: ${postExists}`);
+    console.log(`setOutput calls: ${JSON.stringify((core.setOutput as jest.Mock).mock.calls, null, 2)}`);
+    console.log(`getBooleanInput calls: ${JSON.stringify((core.getBooleanInput as jest.Mock).mock.calls, null, 2)}`);
+    console.log(`getInput calls: ${JSON.stringify((core.getInput as jest.Mock).mock.calls, null, 2)}`);
+
     expect(core.setOutput).toHaveBeenCalledWith('tag_updated', 'true');
     await api.deleteTag(tagName);
   });
 });
 
-async function getLatestCommitSha(repoInfo: RepositoryInfo, repoUrl: string): Promise<string> {
+async function getLatestCommitSha(
+  repoInfo: RepositoryInfo,
+  repoUrl: string,
+  token?: string
+): Promise<string> {
+  let authUrl = repoUrl;
+  if (token && repoUrl.startsWith('https://')) {
+    const u = new URL(repoUrl);
+    // Use token as password with a dummy username to satisfy basic auth
+    u.username = 'token';
+    u.password = token;
+    authUrl = u.toString();
+  }
+
   const output: string[] = [];
-  await exec.exec('git', ['ls-remote', '--heads', repoUrl, 'main'], {
+  await exec.exec('git', ['ls-remote', '--heads', authUrl, 'main'], {
     silent: true,
     listeners: {
       stdout: (data: Buffer) => {

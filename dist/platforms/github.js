@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GitHubAPI = void 0;
+exports.detectFromUrlByHostname = detectFromUrlByHostname;
+exports.detectFromUrl = detectFromUrl;
+exports.determineBaseUrl = determineBaseUrl;
 const http_client_1 = require("./http-client");
 /**
  * GitHub API client
@@ -139,4 +142,60 @@ class GitHubAPI {
     }
 }
 exports.GitHubAPI = GitHubAPI;
+function detectFromUrlByHostname(url) {
+    const hostname = url.hostname.toLowerCase();
+    if (hostname.includes('github.com')) {
+        return 'github';
+    }
+    return undefined;
+}
+async function headOk(url, logger) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    try {
+        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (response.ok || response.status === 401 || response.status === 403) {
+            logger.debug(`GitHub detect: ${url} status ${response.status}`);
+            return true;
+        }
+    }
+    catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+            logger.debug(`GitHub detect timeout: ${url}`);
+        }
+    }
+    return false;
+}
+async function detectFromUrl(url, logger) {
+    const base = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`;
+    const paths = ['/api/v3', '/api'];
+    for (const path of paths) {
+        if (await headOk(`${base}${path}`, logger)) {
+            return 'github';
+        }
+    }
+    return undefined;
+}
+function determineBaseUrl(urls) {
+    const urlArray = Array.isArray(urls) ? urls : [urls];
+    // If explicitly provided base URL exists, use it (would be in the array)
+    for (const urlStr of urlArray) {
+        if (!urlStr)
+            continue;
+        try {
+            const url = new URL(urlStr);
+            // Check if this looks like an API URL
+            if (url.pathname.includes('/api')) {
+                return urlStr;
+            }
+        }
+        catch {
+            // Not a valid URL, skip
+        }
+    }
+    // Default GitHub API URL
+    return 'https://api.github.com';
+}
 //# sourceMappingURL=github.js.map

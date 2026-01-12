@@ -11,7 +11,7 @@ import * as exec from '@actions/exec';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { run } from '../index';
+import { run } from '../../index';
 
 jest.mock('@actions/core', () => ({
   getInput: jest.fn(),

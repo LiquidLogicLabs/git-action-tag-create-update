@@ -26254,73 +26254,7 @@ const config_1 = __nccwpck_require__(2973);
 const logger_1 = __nccwpck_require__(6999);
 const platform_detector_1 = __nccwpck_require__(491);
 const git_1 = __nccwpck_require__(1243);
-const github_1 = __nccwpck_require__(6473);
-const gitea_1 = __nccwpck_require__(4862);
-const bitbucket_1 = __nccwpck_require__(1737);
-const generic_1 = __nccwpck_require__(1165);
-/**
- * Determine base URL for platform
- */
-function determineBaseUrl(platform, providedBaseUrl, repoUrl, logger) {
-    if (providedBaseUrl) {
-        return providedBaseUrl;
-    }
-    switch (platform) {
-        case 'github':
-            return 'https://api.github.com';
-        case 'gitea':
-            // For Gitea, try to detect from repository URL first
-            if (repoUrl) {
-                try {
-                    const url = new URL(repoUrl);
-                    const baseUrl = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}/api/v1`;
-                    logger.debug(`Detected Gitea base URL from repository URL: ${baseUrl}`);
-                    return baseUrl;
-                }
-                catch (error) {
-                    logger.debug(`Failed to parse repository URL: ${repoUrl}, will try environment variables`);
-                }
-            }
-            // If not set from repository URL, try environment variables
-            const serverUrl = process.env.GITHUB_SERVER_URL || process.env.GITEA_SERVER_URL || process.env.GITEA_API_URL;
-            if (serverUrl) {
-                const baseUrl = `${serverUrl.replace(/\/$/, '')}/api/v1`;
-                logger.debug(`Using Gitea base URL from environment: ${baseUrl}`);
-                return baseUrl;
-            }
-            logger.debug('Using default Gitea base URL: https://gitea.com/api/v1');
-            return 'https://gitea.com/api/v1';
-        case 'bitbucket':
-            return 'https://api.bitbucket.org/2.0';
-        default:
-            return undefined;
-    }
-}
-/**
- * Create platform API instance
- */
-function createPlatformAPI(repoType, repoInfo, config, logger) {
-    const platformConfig = {
-        type: repoType,
-        baseUrl: config.baseUrl,
-        token: config.token,
-        ignoreCertErrors: config.ignoreCertErrors,
-        verbose: config.verbose,
-        pushTag: config.pushTag
-    };
-    switch (repoType) {
-        case 'github':
-            return new github_1.GitHubAPI(repoInfo, platformConfig, logger);
-        case 'gitea':
-            return new gitea_1.GiteaAPI(repoInfo, platformConfig, logger);
-        case 'bitbucket':
-            return new bitbucket_1.BitbucketAPI(repoInfo, platformConfig, logger);
-        case 'generic':
-        case 'git':
-        default:
-            return new generic_1.GenericGitAPI(repoInfo, platformConfig, logger);
-    }
-}
+const platform_factory_1 = __nccwpck_require__(1990);
 /**
  * Main action function
  */
@@ -26386,13 +26320,14 @@ async function run() {
         if (!sha) {
             if (usePlatformAPI) {
                 // When using platform API, get HEAD SHA from the remote repository
-                const platformAPI = createPlatformAPI(repoInfo.platform, repoInfo, {
+                const { platform, api: platformAPI } = await (0, platform_factory_1.createPlatformAPI)(repoInfo, inputs.repoType, {
                     token: resolvedToken,
                     baseUrl: inputs.baseUrl,
                     ignoreCertErrors: inputs.ignoreCertErrors,
                     verbose: inputs.verbose,
                     pushTag: inputs.pushTag
                 }, logger);
+                repoInfo.platform = platform;
                 sha = await platformAPI.getHeadSha();
                 logger.debug(`Using HEAD SHA from remote repository: ${sha}`);
             }
@@ -26402,6 +26337,9 @@ async function run() {
             else {
                 throw new Error('tag_sha is required when not running in a local Git repository and not using a platform API');
             }
+        }
+        if (!sha) {
+            throw new Error('Failed to resolve tag SHA');
         }
         // Prepare tag options
         const tagOptions = {
@@ -26448,54 +26386,16 @@ async function run() {
             }
         }
         else {
-            // Use platform API
-            logger.info(`Using ${repoInfo.platform} API`);
-            // Determine base URL for platform
-            let baseUrl = inputs.baseUrl;
-            if (!baseUrl) {
-                switch (repoInfo.platform) {
-                    case 'github':
-                        baseUrl = 'https://api.github.com';
-                        break;
-                    case 'gitea':
-                        // For Gitea, try to detect from repository URL first
-                        if (repoInfo.url) {
-                            try {
-                                const url = new URL(repoInfo.url);
-                                baseUrl = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}/api/v1`;
-                                logger.debug(`Detected Gitea base URL from repository URL: ${baseUrl}`);
-                            }
-                            catch (error) {
-                                // If URL parsing fails, fall through to environment variable checks
-                                logger.debug(`Failed to parse repository URL: ${repoInfo.url}, will try environment variables`);
-                            }
-                        }
-                        // If not set from repository URL, try environment variables
-                        if (!baseUrl) {
-                            // GITHUB_SERVER_URL is provided by both GitHub Actions and Gitea Actions
-                            const serverUrl = process.env.GITHUB_SERVER_URL || process.env.GITEA_SERVER_URL || process.env.GITEA_API_URL;
-                            if (serverUrl) {
-                                baseUrl = `${serverUrl.replace(/\/$/, '')}/api/v1`;
-                                logger.debug(`Using Gitea base URL from environment: ${baseUrl}`);
-                            }
-                            else {
-                                baseUrl = 'https://gitea.com/api/v1';
-                                logger.debug('Using default Gitea base URL: https://gitea.com/api/v1');
-                            }
-                        }
-                        break;
-                    case 'bitbucket':
-                        baseUrl = 'https://api.bitbucket.org/2.0';
-                        break;
-                }
-            }
-            const platformAPI = createPlatformAPI(repoInfo.platform, repoInfo, {
+            // Use platform API via factory (hostname-first, then per-platform detection)
+            const { platform, api: platformAPI } = await (0, platform_factory_1.createPlatformAPI)(repoInfo, inputs.repoType, {
                 token: resolvedToken,
-                baseUrl,
+                baseUrl: inputs.baseUrl,
                 ignoreCertErrors: inputs.ignoreCertErrors,
                 verbose: inputs.verbose,
                 pushTag: inputs.pushTag
             }, logger);
+            repoInfo.platform = platform;
+            logger.info(`Using ${platform} API`);
             // Check if tag exists
             const exists = await platformAPI.tagExists(inputs.tagName);
             if (exists && !inputs.updateExisting) {
@@ -26692,6 +26592,71 @@ exports.getRepositoryInfo = getRepositoryInfo;
 const exec = __importStar(__nccwpck_require__(5236));
 const io = __importStar(__nccwpck_require__(4994));
 /**
+ * Detect platform from known public URLs
+ */
+function detectPlatformFromHostname(hostname) {
+    const lowerHostname = hostname.toLowerCase();
+    if (lowerHostname.includes('github.com')) {
+        return 'github';
+    }
+    if (lowerHostname.includes('gitea.com')) {
+        return 'gitea';
+    }
+    if (lowerHostname.includes('bitbucket.org')) {
+        return 'bitbucket';
+    }
+    return undefined;
+}
+/**
+ * Query URL to detect platform by checking common API endpoints
+ */
+async function detectPlatformFromUrl(url, logger) {
+    const protocol = url.protocol;
+    const hostname = url.hostname;
+    const port = url.port ? `:${url.port}` : '';
+    const baseUrl = `${protocol}//${hostname}${port}`;
+    // Try common API endpoints
+    const endpoints = [
+        { path: '/api/v1/version', platform: 'gitea' },
+        { path: '/api/v3', platform: 'github' },
+        { path: '/api', platform: 'github' },
+        { path: '/rest/api/1.0', platform: 'bitbucket' },
+        { path: '/2.0', platform: 'bitbucket' }
+    ];
+    for (const endpoint of endpoints) {
+        try {
+            const testUrl = `${baseUrl}${endpoint.path}`;
+            logger.debug(`Trying to detect platform from ${testUrl}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+            try {
+                const response = await fetch(testUrl, {
+                    method: 'HEAD',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (response.ok || response.status === 401 || response.status === 403) {
+                    // 401/403 means the endpoint exists but requires auth - that's good enough
+                    logger.debug(`Detected platform ${endpoint.platform} from ${testUrl} (status: ${response.status})`);
+                    return endpoint.platform;
+                }
+            }
+            catch (error) {
+                clearTimeout(timeoutId);
+                // Continue to next endpoint
+                if (error instanceof Error && error.name === 'AbortError') {
+                    logger.debug(`Timeout detecting platform from ${testUrl}`);
+                }
+            }
+        }
+        catch (error) {
+            // Continue to next endpoint
+            logger.debug(`Error detecting platform: ${error}`);
+        }
+    }
+    return undefined;
+}
+/**
  * Parse repository URL or owner/repo format
  */
 function parseRepository(repository, logger) {
@@ -26708,17 +26673,8 @@ function parseRepository(repository, logger) {
         if (pathParts.length >= 2) {
             const owner = pathParts[0];
             const repo = pathParts[1].replace(/\.git$/, '');
-            // Detect platform from hostname
-            let platform = 'generic';
-            if (hostname.includes('github.com') || hostname.includes('github.enterprise')) {
-                platform = 'github';
-            }
-            else if (hostname.includes('gitea.com') || hostname.includes('gitea')) {
-                platform = 'gitea';
-            }
-            else if (hostname.includes('bitbucket.org') || hostname.includes('bitbucket')) {
-                platform = 'bitbucket';
-            }
+            // First, check known public URLs
+            const platform = detectPlatformFromHostname(hostname) || 'auto';
             logger.debug(`Detected platform: ${platform} from URL: ${url.href}`);
             return {
                 owner,
@@ -26763,7 +26719,7 @@ async function getLocalRepositoryInfo(logger) {
             logger.debug('Not in a Git repository');
             return undefined;
         }
-        // Get remote URL
+        // Get remote URL - if no remote origin, assume local git (generic)
         let remoteUrl = '';
         try {
             const output = [];
@@ -26778,33 +26734,11 @@ async function getLocalRepositoryInfo(logger) {
             remoteUrl = output.join('').trim();
         }
         catch {
-            logger.debug('Could not get remote URL');
+            logger.debug('No remote origin found, will use local git (generic)');
+            // No remote origin - return undefined so caller can use generic
+            return undefined;
         }
-        // Get current repository info from GitHub context if available
-        const githubRepo = process.env.GITHUB_REPOSITORY;
-        if (githubRepo) {
-            const [owner, repo] = githubRepo.split('/');
-            logger.debug(`Using GitHub context: ${owner}/${repo}`);
-            return {
-                owner,
-                repo,
-                url: remoteUrl || undefined,
-                platform: 'github'
-            };
-        }
-        // Get current repository info from Gitea context if available
-        const giteaRepo = process.env.GITEA_REPOSITORY;
-        if (giteaRepo) {
-            const [owner, repo] = giteaRepo.split('/');
-            logger.debug(`Using Gitea context: ${owner}/${repo}`);
-            return {
-                owner,
-                repo,
-                url: remoteUrl || undefined,
-                platform: 'gitea'
-            };
-        }
-        // Try to parse remote URL
+        // If we have a remote URL, parse it
         if (remoteUrl) {
             const parsed = parseRepository(remoteUrl, logger);
             if (parsed) {
@@ -26833,17 +26767,7 @@ function detectPlatform(repoType, repositoryInfo, logger) {
         logger.debug(`Detected platform from repository: ${repositoryInfo.platform}`);
         return repositoryInfo.platform;
     }
-    // Try to detect from GitHub context
-    if (process.env.GITHUB_REPOSITORY) {
-        logger.debug('Detected GitHub from GITHUB_REPOSITORY context');
-        return 'github';
-    }
-    // Try to detect from Gitea context
-    if (process.env.GITEA_REPOSITORY) {
-        logger.debug('Detected Gitea from GITEA_REPOSITORY context');
-        return 'gitea';
-    }
-    // Fallback to generic
+    // Fallback to generic (local git)
     logger.debug('Could not detect platform, using generic');
     return 'generic';
 }
@@ -26855,41 +26779,82 @@ async function getRepositoryInfo(repository, repoType, logger) {
     // Try to parse provided repository
     if (repository) {
         repoInfo = parseRepository(repository, logger);
+        // If platform is 'auto' and we have a URL, try to query it to detect platform
+        if (repoInfo && repoInfo.platform === 'auto' && repoInfo.url) {
+            try {
+                const url = new URL(repoInfo.url);
+                const detectedPlatform = await detectPlatformFromUrl(url, logger);
+                if (detectedPlatform) {
+                    repoInfo.platform = detectedPlatform;
+                    logger.debug(`Detected platform ${detectedPlatform} by querying URL`);
+                }
+            }
+            catch (error) {
+                logger.debug(`Could not query URL to detect platform: ${error}`);
+            }
+        }
     }
     // If not provided or couldn't parse, try local repository
     if (!repoInfo) {
         repoInfo = await getLocalRepositoryInfo(logger);
+        // If we got repo info with auto platform and have a URL, try to query it
+        if (repoInfo && repoInfo.platform === 'auto' && repoInfo.url) {
+            try {
+                const url = new URL(repoInfo.url);
+                const detectedPlatform = await detectPlatformFromUrl(url, logger);
+                if (detectedPlatform) {
+                    repoInfo.platform = detectedPlatform;
+                    logger.debug(`Detected platform ${detectedPlatform} by querying URL`);
+                }
+            }
+            catch (error) {
+                logger.debug(`Could not query URL to detect platform: ${error}`);
+            }
+        }
     }
-    // If still no info, try GitHub or Gitea context
+    // If still no info, try environment variables as fallback
     if (!repoInfo) {
-        const githubRepo = process.env.GITHUB_REPOSITORY;
-        if (githubRepo) {
-            const [owner, repo] = githubRepo.split('/');
+        // Check Gitea first (since Gitea Actions sets GITHUB_REPOSITORY for compatibility)
+        const giteaRepo = process.env.GITEA_REPOSITORY;
+        const giteaServerUrl = process.env.GITEA_SERVER_URL || process.env.GITEA_API_URL;
+        const githubServerUrl = process.env.GITHUB_SERVER_URL;
+        if (giteaRepo) {
+            const [owner, repo] = giteaRepo.split('/');
             repoInfo = {
                 owner,
                 repo,
-                platform: 'github'
+                platform: 'gitea'
             };
-            logger.debug(`Using GitHub context: ${owner}/${repo}`);
+            logger.debug(`Using GITEA_REPOSITORY: ${owner}/${repo}`);
         }
-        else {
-            const giteaRepo = process.env.GITEA_REPOSITORY;
-            if (giteaRepo) {
-                const [owner, repo] = giteaRepo.split('/');
+        else if (giteaServerUrl || (githubServerUrl && !githubServerUrl.includes('github.com'))) {
+            // Gitea server URL or GITHUB_SERVER_URL set to non-GitHub URL indicates Gitea
+            const githubRepo = process.env.GITHUB_REPOSITORY;
+            if (githubRepo) {
+                const [owner, repo] = githubRepo.split('/');
                 repoInfo = {
                     owner,
                     repo,
                     platform: 'gitea'
                 };
-                logger.debug(`Using Gitea context: ${owner}/${repo}`);
+                logger.debug(`Detected Gitea from server URL: ${owner}/${repo}`);
             }
+        }
+        else if (process.env.GITHUB_REPOSITORY) {
+            const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+            repoInfo = {
+                owner,
+                repo,
+                platform: 'github'
+            };
+            logger.debug(`Using GITHUB_REPOSITORY: ${owner}/${repo}`);
         }
     }
     // If we still don't have info, throw error
     if (!repoInfo) {
         throw new Error('Could not determine repository information. Please provide repository input or run in a Git repository.');
     }
-    // Detect platform
+    // Detect platform (this will use the platform from repoInfo if set, or fallback to generic)
     const platform = detectPlatform(repoType, repoInfo, logger);
     repoInfo.platform = platform;
     logger.info(`Repository: ${repoInfo.owner}/${repoInfo.repo}, Platform: ${platform}`);
@@ -26906,6 +26871,9 @@ async function getRepositoryInfo(repository, repoType, logger) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BitbucketAPI = void 0;
+exports.detectFromUrlByHostname = detectFromUrlByHostname;
+exports.detectFromUrl = detectFromUrl;
+exports.determineBaseUrl = determineBaseUrl;
 const http_client_1 = __nccwpck_require__(3696);
 /**
  * Bitbucket API client
@@ -27039,6 +27007,46 @@ class BitbucketAPI {
     }
 }
 exports.BitbucketAPI = BitbucketAPI;
+function detectFromUrlByHostname(url) {
+    const hostname = url.hostname.toLowerCase();
+    if (hostname.includes('bitbucket.org') || hostname.includes('bitbucket')) {
+        return 'bitbucket';
+    }
+    return undefined;
+}
+async function headOk(url, logger) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    try {
+        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (response.ok || response.status === 401 || response.status === 403) {
+            logger.debug(`Bitbucket detect: ${url} status ${response.status}`);
+            return true;
+        }
+    }
+    catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+            logger.debug(`Bitbucket detect timeout: ${url}`);
+        }
+    }
+    return false;
+}
+async function detectFromUrl(url, logger) {
+    const base = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`;
+    const paths = ['/rest/api/1.0', '/2.0'];
+    for (const path of paths) {
+        if (await headOk(`${base}${path}`, logger)) {
+            return 'bitbucket';
+        }
+    }
+    return undefined;
+}
+function determineBaseUrl(_urls) {
+    // Bitbucket uses fixed API URLs
+    return 'https://api.bitbucket.org/2.0';
+}
 
 
 /***/ }),
@@ -27050,6 +27058,9 @@ exports.BitbucketAPI = BitbucketAPI;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GenericGitAPI = void 0;
+exports.detectFromUrlByHostname = detectFromUrlByHostname;
+exports.detectFromUrl = detectFromUrl;
+exports.determineBaseUrl = determineBaseUrl;
 const git_1 = __nccwpck_require__(1243);
 /**
  * Generic Git CLI platform implementation
@@ -27144,6 +27155,18 @@ class GenericGitAPI {
     }
 }
 exports.GenericGitAPI = GenericGitAPI;
+function detectFromUrlByHostname(_url) {
+    // Generic detection does not detect from hostname
+    return undefined;
+}
+async function detectFromUrl(_url, _logger) {
+    // Generic detection does not probe; factory will fall back to generic when others do not match.
+    return undefined;
+}
+function determineBaseUrl(_urls) {
+    // Generic Git does not need a base URL
+    return undefined;
+}
 
 
 /***/ }),
@@ -27155,6 +27178,9 @@ exports.GenericGitAPI = GenericGitAPI;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GiteaAPI = void 0;
+exports.detectFromUrlByHostname = detectFromUrlByHostname;
+exports.determineBaseUrl = determineBaseUrl;
+exports.detectFromUrl = detectFromUrl;
 const http_client_1 = __nccwpck_require__(3696);
 function normalizeGiteaBaseUrl(baseUrl) {
     const trimmed = baseUrl.replace(/\/+$/, '');
@@ -27349,6 +27375,77 @@ class GiteaAPI {
     }
 }
 exports.GiteaAPI = GiteaAPI;
+function detectFromUrlByHostname(url) {
+    const hostname = url.hostname.toLowerCase();
+    if (hostname.includes('gitea.com') || hostname.includes('gitea')) {
+        return 'gitea';
+    }
+    return undefined;
+}
+function determineBaseUrl(urls) {
+    const urlArray = Array.isArray(urls) ? urls : [urls];
+    // Check if first URL is an explicit API URL (contains /api)
+    if (urlArray.length > 0 && urlArray[0]) {
+        try {
+            const url = new URL(urlArray[0]);
+            if (url.pathname.includes('/api')) {
+                return urlArray[0];
+            }
+        }
+        catch {
+            // Not a valid URL, continue
+        }
+    }
+    // Check repository/origin URLs to derive API URL
+    for (const urlStr of urlArray) {
+        if (!urlStr)
+            continue;
+        try {
+            const url = new URL(urlStr);
+            const baseUrl = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}/api/v1`;
+            return baseUrl;
+        }
+        catch {
+            // Not a valid URL, skip
+        }
+    }
+    // Check environment variables
+    const serverUrl = process.env.GITHUB_SERVER_URL || process.env.GITEA_SERVER_URL || process.env.GITEA_API_URL;
+    if (serverUrl) {
+        return `${serverUrl.replace(/\/$/, '')}/api/v1`;
+    }
+    // Default Gitea API URL
+    return 'https://gitea.com/api/v1';
+}
+async function headOk(url, logger) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    try {
+        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (response.ok || response.status === 401 || response.status === 403) {
+            logger.debug(`Gitea detect: ${url} status ${response.status}`);
+            return true;
+        }
+    }
+    catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+            logger.debug(`Gitea detect timeout: ${url}`);
+        }
+    }
+    return false;
+}
+async function detectFromUrl(url, logger) {
+    const base = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`;
+    const paths = ['/api/v1/version'];
+    for (const path of paths) {
+        if (await headOk(`${base}${path}`, logger)) {
+            return 'gitea';
+        }
+    }
+    return undefined;
+}
 
 
 /***/ }),
@@ -27360,6 +27457,9 @@ exports.GiteaAPI = GiteaAPI;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GitHubAPI = void 0;
+exports.detectFromUrlByHostname = detectFromUrlByHostname;
+exports.detectFromUrl = detectFromUrl;
+exports.determineBaseUrl = determineBaseUrl;
 const http_client_1 = __nccwpck_require__(3696);
 /**
  * GitHub API client
@@ -27498,6 +27598,62 @@ class GitHubAPI {
     }
 }
 exports.GitHubAPI = GitHubAPI;
+function detectFromUrlByHostname(url) {
+    const hostname = url.hostname.toLowerCase();
+    if (hostname.includes('github.com')) {
+        return 'github';
+    }
+    return undefined;
+}
+async function headOk(url, logger) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    try {
+        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (response.ok || response.status === 401 || response.status === 403) {
+            logger.debug(`GitHub detect: ${url} status ${response.status}`);
+            return true;
+        }
+    }
+    catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+            logger.debug(`GitHub detect timeout: ${url}`);
+        }
+    }
+    return false;
+}
+async function detectFromUrl(url, logger) {
+    const base = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`;
+    const paths = ['/api/v3', '/api'];
+    for (const path of paths) {
+        if (await headOk(`${base}${path}`, logger)) {
+            return 'github';
+        }
+    }
+    return undefined;
+}
+function determineBaseUrl(urls) {
+    const urlArray = Array.isArray(urls) ? urls : [urls];
+    // If explicitly provided base URL exists, use it (would be in the array)
+    for (const urlStr of urlArray) {
+        if (!urlStr)
+            continue;
+        try {
+            const url = new URL(urlStr);
+            // Check if this looks like an API URL
+            if (url.pathname.includes('/api')) {
+                return urlStr;
+            }
+        }
+        catch {
+            // Not a valid URL, skip
+        }
+    }
+    // Default GitHub API URL
+    return 'https://api.github.com';
+}
 
 
 /***/ }),
@@ -27609,6 +27765,210 @@ class HttpClient {
     }
 }
 exports.HttpClient = HttpClient;
+
+
+/***/ }),
+
+/***/ 1990:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createPlatformAPI = createPlatformAPI;
+const exec = __importStar(__nccwpck_require__(5236));
+const github_1 = __nccwpck_require__(6473);
+const gitea_1 = __nccwpck_require__(4862);
+const bitbucket_1 = __nccwpck_require__(1737);
+const generic_1 = __nccwpck_require__(1165);
+const platformProviders = [
+    {
+        type: 'gitea',
+        detectFromUrlByHostname: gitea_1.detectFromUrlByHostname,
+        detectFromUrl: gitea_1.detectFromUrl,
+        createAPI: (repoInfo, config, logger) => new gitea_1.GiteaAPI(repoInfo, config, logger)
+    },
+    {
+        type: 'github',
+        detectFromUrlByHostname: github_1.detectFromUrlByHostname,
+        detectFromUrl: github_1.detectFromUrl,
+        createAPI: (repoInfo, config, logger) => new github_1.GitHubAPI(repoInfo, config, logger)
+    },
+    {
+        type: 'bitbucket',
+        detectFromUrlByHostname: bitbucket_1.detectFromUrlByHostname,
+        detectFromUrl: bitbucket_1.detectFromUrl,
+        createAPI: (repoInfo, config, logger) => new bitbucket_1.BitbucketAPI(repoInfo, config, logger)
+    },
+    {
+        type: 'generic',
+        detectFromUrlByHostname: generic_1.detectFromUrlByHostname,
+        detectFromUrl: generic_1.detectFromUrl,
+        createAPI: (repoInfo, config, logger) => new generic_1.GenericGitAPI(repoInfo, config, logger)
+    }
+];
+/**
+ * Collect candidate URLs from repository URL, origin URL, and environment variables
+ */
+async function collectCandidateUrls(repoInfo, logger) {
+    const urls = [];
+    // Add repository URL if available
+    if (repoInfo.url) {
+        urls.push(repoInfo.url);
+    }
+    // Try to get origin URL from git
+    try {
+        const output = [];
+        await exec.exec('git', ['config', '--get', 'remote.origin.url'], {
+            silent: true,
+            listeners: {
+                stdout: (data) => {
+                    output.push(data.toString());
+                }
+            },
+            ignoreReturnCode: true
+        });
+        const originUrl = output.join('').trim();
+        if (originUrl && originUrl !== repoInfo.url) {
+            urls.push(originUrl);
+            logger.debug(`Added origin URL: ${originUrl}`);
+        }
+    }
+    catch {
+        // Git not available or no origin - skip
+    }
+    // Add environment variable URLs
+    const envUrls = [
+        process.env.GITHUB_SERVER_URL,
+        process.env.GITEA_SERVER_URL,
+        process.env.GITEA_API_URL
+    ].filter((url) => !!url);
+    for (const envUrl of envUrls) {
+        if (!urls.includes(envUrl)) {
+            urls.push(envUrl);
+            logger.debug(`Added environment URL: ${envUrl}`);
+        }
+    }
+    return urls;
+}
+async function resolvePlatform(repoInfo, repoType, logger) {
+    if (repoType !== 'auto') {
+        return repoType;
+    }
+    if (repoInfo.platform !== 'auto') {
+        return repoInfo.platform;
+    }
+    // Collect candidate URLs
+    const candidateUrls = await collectCandidateUrls(repoInfo, logger);
+    // First loop: Try detectFromUrlByHostname on each URL
+    for (const urlStr of candidateUrls) {
+        try {
+            const url = new URL(urlStr);
+            // Try detectFromUrlByHostname from each provider
+            for (const provider of platformProviders) {
+                const detected = provider.detectFromUrlByHostname(url);
+                if (detected) {
+                    logger.debug(`Detected platform ${detected} from hostname: ${url.hostname} (URL: ${urlStr})`);
+                    return detected;
+                }
+            }
+        }
+        catch {
+            logger.debug(`Could not parse URL for hostname detection: ${urlStr}`);
+        }
+    }
+    // Second loop: Try detectFromUrl (endpoint probing) on each URL
+    for (const urlStr of candidateUrls) {
+        try {
+            const url = new URL(urlStr);
+            // Try detectFromUrl from each provider (excluding generic)
+            for (const provider of platformProviders) {
+                if (provider.type === 'generic') {
+                    continue; // Skip generic - it always returns undefined
+                }
+                const detected = await provider.detectFromUrl(url, logger);
+                if (detected) {
+                    logger.debug(`Detected platform ${detected} from API probe: ${urlStr}`);
+                    return detected;
+                }
+            }
+        }
+        catch {
+            logger.debug(`Could not parse URL for detector probes: ${urlStr}`);
+        }
+    }
+    logger.debug('Could not detect platform, defaulting to generic');
+    return 'generic';
+}
+async function createPlatformAPI(repoInfo, repoType, config, logger) {
+    const platform = await resolvePlatform(repoInfo, repoType, logger);
+    // Find the provider for the resolved platform
+    const provider = platformProviders.find(p => p.type === platform) || platformProviders.find(p => p.type === 'generic');
+    // Collect candidate URLs for base URL determination
+    const candidateUrls = await collectCandidateUrls(repoInfo, logger);
+    // If explicit baseUrl is provided, prepend it to the array
+    const urlsForBaseUrl = config.baseUrl ? [config.baseUrl, ...candidateUrls] : candidateUrls;
+    // Determine base URL using the platform's internal function (not part of interface)
+    let determineBaseUrlFn;
+    switch (platform) {
+        case 'github':
+            determineBaseUrlFn = github_1.determineBaseUrl;
+            break;
+        case 'gitea':
+            determineBaseUrlFn = gitea_1.determineBaseUrl;
+            break;
+        case 'bitbucket':
+            determineBaseUrlFn = bitbucket_1.determineBaseUrl;
+            break;
+        default:
+            determineBaseUrlFn = generic_1.determineBaseUrl;
+            break;
+    }
+    const baseUrl = determineBaseUrlFn(urlsForBaseUrl);
+    const platformConfig = {
+        type: platform,
+        baseUrl,
+        token: config.token,
+        ignoreCertErrors: config.ignoreCertErrors,
+        verbose: config.verbose,
+        pushTag: config.pushTag
+    };
+    const api = provider.createAPI(repoInfo, platformConfig, logger);
+    return { platform, api, baseUrl };
+}
 
 
 /***/ }),

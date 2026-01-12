@@ -40,6 +40,71 @@ exports.getRepositoryInfo = getRepositoryInfo;
 const exec = __importStar(require("@actions/exec"));
 const io = __importStar(require("@actions/io"));
 /**
+ * Detect platform from known public URLs
+ */
+function detectPlatformFromHostname(hostname) {
+    const lowerHostname = hostname.toLowerCase();
+    if (lowerHostname.includes('github.com')) {
+        return 'github';
+    }
+    if (lowerHostname.includes('gitea.com')) {
+        return 'gitea';
+    }
+    if (lowerHostname.includes('bitbucket.org')) {
+        return 'bitbucket';
+    }
+    return undefined;
+}
+/**
+ * Query URL to detect platform by checking common API endpoints
+ */
+async function detectPlatformFromUrl(url, logger) {
+    const protocol = url.protocol;
+    const hostname = url.hostname;
+    const port = url.port ? `:${url.port}` : '';
+    const baseUrl = `${protocol}//${hostname}${port}`;
+    // Try common API endpoints
+    const endpoints = [
+        { path: '/api/v1/version', platform: 'gitea' },
+        { path: '/api/v3', platform: 'github' },
+        { path: '/api', platform: 'github' },
+        { path: '/rest/api/1.0', platform: 'bitbucket' },
+        { path: '/2.0', platform: 'bitbucket' }
+    ];
+    for (const endpoint of endpoints) {
+        try {
+            const testUrl = `${baseUrl}${endpoint.path}`;
+            logger.debug(`Trying to detect platform from ${testUrl}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+            try {
+                const response = await fetch(testUrl, {
+                    method: 'HEAD',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (response.ok || response.status === 401 || response.status === 403) {
+                    // 401/403 means the endpoint exists but requires auth - that's good enough
+                    logger.debug(`Detected platform ${endpoint.platform} from ${testUrl} (status: ${response.status})`);
+                    return endpoint.platform;
+                }
+            }
+            catch (error) {
+                clearTimeout(timeoutId);
+                // Continue to next endpoint
+                if (error instanceof Error && error.name === 'AbortError') {
+                    logger.debug(`Timeout detecting platform from ${testUrl}`);
+                }
+            }
+        }
+        catch (error) {
+            // Continue to next endpoint
+            logger.debug(`Error detecting platform: ${error}`);
+        }
+    }
+    return undefined;
+}
+/**
  * Parse repository URL or owner/repo format
  */
 function parseRepository(repository, logger) {
@@ -56,17 +121,8 @@ function parseRepository(repository, logger) {
         if (pathParts.length >= 2) {
             const owner = pathParts[0];
             const repo = pathParts[1].replace(/\.git$/, '');
-            // Detect platform from hostname
-            let platform = 'generic';
-            if (hostname.includes('github.com') || hostname.includes('github.enterprise')) {
-                platform = 'github';
-            }
-            else if (hostname.includes('gitea.com') || hostname.includes('gitea')) {
-                platform = 'gitea';
-            }
-            else if (hostname.includes('bitbucket.org') || hostname.includes('bitbucket')) {
-                platform = 'bitbucket';
-            }
+            // First, check known public URLs
+            const platform = detectPlatformFromHostname(hostname) || 'auto';
             logger.debug(`Detected platform: ${platform} from URL: ${url.href}`);
             return {
                 owner,
@@ -111,7 +167,7 @@ async function getLocalRepositoryInfo(logger) {
             logger.debug('Not in a Git repository');
             return undefined;
         }
-        // Get remote URL
+        // Get remote URL - if no remote origin, assume local git (generic)
         let remoteUrl = '';
         try {
             const output = [];
@@ -126,33 +182,11 @@ async function getLocalRepositoryInfo(logger) {
             remoteUrl = output.join('').trim();
         }
         catch {
-            logger.debug('Could not get remote URL');
+            logger.debug('No remote origin found, will use local git (generic)');
+            // No remote origin - return undefined so caller can use generic
+            return undefined;
         }
-        // Get current repository info from GitHub context if available
-        const githubRepo = process.env.GITHUB_REPOSITORY;
-        if (githubRepo) {
-            const [owner, repo] = githubRepo.split('/');
-            logger.debug(`Using GitHub context: ${owner}/${repo}`);
-            return {
-                owner,
-                repo,
-                url: remoteUrl || undefined,
-                platform: 'github'
-            };
-        }
-        // Get current repository info from Gitea context if available
-        const giteaRepo = process.env.GITEA_REPOSITORY;
-        if (giteaRepo) {
-            const [owner, repo] = giteaRepo.split('/');
-            logger.debug(`Using Gitea context: ${owner}/${repo}`);
-            return {
-                owner,
-                repo,
-                url: remoteUrl || undefined,
-                platform: 'gitea'
-            };
-        }
-        // Try to parse remote URL
+        // If we have a remote URL, parse it
         if (remoteUrl) {
             const parsed = parseRepository(remoteUrl, logger);
             if (parsed) {
@@ -181,17 +215,7 @@ function detectPlatform(repoType, repositoryInfo, logger) {
         logger.debug(`Detected platform from repository: ${repositoryInfo.platform}`);
         return repositoryInfo.platform;
     }
-    // Try to detect from GitHub context
-    if (process.env.GITHUB_REPOSITORY) {
-        logger.debug('Detected GitHub from GITHUB_REPOSITORY context');
-        return 'github';
-    }
-    // Try to detect from Gitea context
-    if (process.env.GITEA_REPOSITORY) {
-        logger.debug('Detected Gitea from GITEA_REPOSITORY context');
-        return 'gitea';
-    }
-    // Fallback to generic
+    // Fallback to generic (local git)
     logger.debug('Could not detect platform, using generic');
     return 'generic';
 }
@@ -203,41 +227,82 @@ async function getRepositoryInfo(repository, repoType, logger) {
     // Try to parse provided repository
     if (repository) {
         repoInfo = parseRepository(repository, logger);
+        // If platform is 'auto' and we have a URL, try to query it to detect platform
+        if (repoInfo && repoInfo.platform === 'auto' && repoInfo.url) {
+            try {
+                const url = new URL(repoInfo.url);
+                const detectedPlatform = await detectPlatformFromUrl(url, logger);
+                if (detectedPlatform) {
+                    repoInfo.platform = detectedPlatform;
+                    logger.debug(`Detected platform ${detectedPlatform} by querying URL`);
+                }
+            }
+            catch (error) {
+                logger.debug(`Could not query URL to detect platform: ${error}`);
+            }
+        }
     }
     // If not provided or couldn't parse, try local repository
     if (!repoInfo) {
         repoInfo = await getLocalRepositoryInfo(logger);
+        // If we got repo info with auto platform and have a URL, try to query it
+        if (repoInfo && repoInfo.platform === 'auto' && repoInfo.url) {
+            try {
+                const url = new URL(repoInfo.url);
+                const detectedPlatform = await detectPlatformFromUrl(url, logger);
+                if (detectedPlatform) {
+                    repoInfo.platform = detectedPlatform;
+                    logger.debug(`Detected platform ${detectedPlatform} by querying URL`);
+                }
+            }
+            catch (error) {
+                logger.debug(`Could not query URL to detect platform: ${error}`);
+            }
+        }
     }
-    // If still no info, try GitHub or Gitea context
+    // If still no info, try environment variables as fallback
     if (!repoInfo) {
-        const githubRepo = process.env.GITHUB_REPOSITORY;
-        if (githubRepo) {
-            const [owner, repo] = githubRepo.split('/');
+        // Check Gitea first (since Gitea Actions sets GITHUB_REPOSITORY for compatibility)
+        const giteaRepo = process.env.GITEA_REPOSITORY;
+        const giteaServerUrl = process.env.GITEA_SERVER_URL || process.env.GITEA_API_URL;
+        const githubServerUrl = process.env.GITHUB_SERVER_URL;
+        if (giteaRepo) {
+            const [owner, repo] = giteaRepo.split('/');
             repoInfo = {
                 owner,
                 repo,
-                platform: 'github'
+                platform: 'gitea'
             };
-            logger.debug(`Using GitHub context: ${owner}/${repo}`);
+            logger.debug(`Using GITEA_REPOSITORY: ${owner}/${repo}`);
         }
-        else {
-            const giteaRepo = process.env.GITEA_REPOSITORY;
-            if (giteaRepo) {
-                const [owner, repo] = giteaRepo.split('/');
+        else if (giteaServerUrl || (githubServerUrl && !githubServerUrl.includes('github.com'))) {
+            // Gitea server URL or GITHUB_SERVER_URL set to non-GitHub URL indicates Gitea
+            const githubRepo = process.env.GITHUB_REPOSITORY;
+            if (githubRepo) {
+                const [owner, repo] = githubRepo.split('/');
                 repoInfo = {
                     owner,
                     repo,
                     platform: 'gitea'
                 };
-                logger.debug(`Using Gitea context: ${owner}/${repo}`);
+                logger.debug(`Detected Gitea from server URL: ${owner}/${repo}`);
             }
+        }
+        else if (process.env.GITHUB_REPOSITORY) {
+            const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+            repoInfo = {
+                owner,
+                repo,
+                platform: 'github'
+            };
+            logger.debug(`Using GITHUB_REPOSITORY: ${owner}/${repo}`);
         }
     }
     // If we still don't have info, throw error
     if (!repoInfo) {
         throw new Error('Could not determine repository information. Please provide repository input or run in a Git repository.');
     }
-    // Detect platform
+    // Detect platform (this will use the platform from repoInfo if set, or fallback to generic)
     const platform = detectPlatform(repoType, repoInfo, logger);
     repoInfo.platform = platform;
     logger.info(`Repository: ${repoInfo.owner}/${repoInfo.repo}, Platform: ${platform}`);

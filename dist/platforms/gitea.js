@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GiteaAPI = void 0;
+exports.detectFromUrlByHostname = detectFromUrlByHostname;
+exports.determineBaseUrl = determineBaseUrl;
+exports.detectFromUrl = detectFromUrl;
 const http_client_1 = require("./http-client");
 function normalizeGiteaBaseUrl(baseUrl) {
     const trimmed = baseUrl.replace(/\/+$/, '');
@@ -195,4 +198,75 @@ class GiteaAPI {
     }
 }
 exports.GiteaAPI = GiteaAPI;
+function detectFromUrlByHostname(url) {
+    const hostname = url.hostname.toLowerCase();
+    if (hostname.includes('gitea.com') || hostname.includes('gitea')) {
+        return 'gitea';
+    }
+    return undefined;
+}
+function determineBaseUrl(urls) {
+    const urlArray = Array.isArray(urls) ? urls : [urls];
+    // Check if first URL is an explicit API URL (contains /api)
+    if (urlArray.length > 0 && urlArray[0]) {
+        try {
+            const url = new URL(urlArray[0]);
+            if (url.pathname.includes('/api')) {
+                return urlArray[0];
+            }
+        }
+        catch {
+            // Not a valid URL, continue
+        }
+    }
+    // Check repository/origin URLs to derive API URL
+    for (const urlStr of urlArray) {
+        if (!urlStr)
+            continue;
+        try {
+            const url = new URL(urlStr);
+            const baseUrl = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}/api/v1`;
+            return baseUrl;
+        }
+        catch {
+            // Not a valid URL, skip
+        }
+    }
+    // Check environment variables
+    const serverUrl = process.env.GITHUB_SERVER_URL || process.env.GITEA_SERVER_URL || process.env.GITEA_API_URL;
+    if (serverUrl) {
+        return `${serverUrl.replace(/\/$/, '')}/api/v1`;
+    }
+    // Default Gitea API URL
+    return 'https://gitea.com/api/v1';
+}
+async function headOk(url, logger) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    try {
+        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (response.ok || response.status === 401 || response.status === 403) {
+            logger.debug(`Gitea detect: ${url} status ${response.status}`);
+            return true;
+        }
+    }
+    catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+            logger.debug(`Gitea detect timeout: ${url}`);
+        }
+    }
+    return false;
+}
+async function detectFromUrl(url, logger) {
+    const base = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`;
+    const paths = ['/api/v1/version'];
+    for (const path of paths) {
+        if (await headOk(`${base}${path}`, logger)) {
+            return 'gitea';
+        }
+    }
+    return undefined;
+}
 //# sourceMappingURL=gitea.js.map

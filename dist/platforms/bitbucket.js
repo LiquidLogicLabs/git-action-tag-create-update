@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BitbucketAPI = void 0;
+exports.detectFromUrlByHostname = detectFromUrlByHostname;
+exports.detectFromUrl = detectFromUrl;
+exports.determineBaseUrl = determineBaseUrl;
 const http_client_1 = require("./http-client");
 /**
  * Bitbucket API client
@@ -134,4 +137,44 @@ class BitbucketAPI {
     }
 }
 exports.BitbucketAPI = BitbucketAPI;
+function detectFromUrlByHostname(url) {
+    const hostname = url.hostname.toLowerCase();
+    if (hostname.includes('bitbucket.org') || hostname.includes('bitbucket')) {
+        return 'bitbucket';
+    }
+    return undefined;
+}
+async function headOk(url, logger) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    try {
+        const response = await fetch(url, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (response.ok || response.status === 401 || response.status === 403) {
+            logger.debug(`Bitbucket detect: ${url} status ${response.status}`);
+            return true;
+        }
+    }
+    catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+            logger.debug(`Bitbucket detect timeout: ${url}`);
+        }
+    }
+    return false;
+}
+async function detectFromUrl(url, logger) {
+    const base = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}`;
+    const paths = ['/rest/api/1.0', '/2.0'];
+    for (const path of paths) {
+        if (await headOk(`${base}${path}`, logger)) {
+            return 'bitbucket';
+        }
+    }
+    return undefined;
+}
+function determineBaseUrl(_urls) {
+    // Bitbucket uses fixed API URLs
+    return 'https://api.bitbucket.org/2.0';
+}
 //# sourceMappingURL=bitbucket.js.map

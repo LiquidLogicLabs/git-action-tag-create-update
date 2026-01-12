@@ -1,4 +1,4 @@
-import { PlatformAPI, TagOptions, TagResult, RepositoryInfo, PlatformConfig } from '../types';
+import { PlatformAPI, TagOptions, TagResult, RepositoryInfo, PlatformConfig, RepoType } from '../types';
 import { Logger } from '../logger';
 /**
  * Gitea API client
@@ -29,4 +29,7 @@ export declare class GiteaAPI implements PlatformAPI {
      */
     getHeadSha(): Promise<string>;
 }
+export declare function detectFromUrlByHostname(url: URL): RepoType | undefined;
+export declare function determineBaseUrl(urls: string | string[]): string | undefined;
+export declare function detectFromUrl(url: URL, logger: Logger): Promise<RepoType | undefined>;
 //# sourceMappingURL=gitea.d.ts.map

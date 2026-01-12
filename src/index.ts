@@ -3,94 +3,8 @@ import { getInputs, resolveToken } from './config';
 import { Logger } from './logger';
 import { getRepositoryInfo } from './platform-detector';
 import { isGitRepository, getHeadSha, createTag, pushTag } from './git';
-import { GitHubAPI } from './platforms/github';
-import { GiteaAPI } from './platforms/gitea';
-import { BitbucketAPI } from './platforms/bitbucket';
-import { GenericGitAPI } from './platforms/generic';
+import { createPlatformAPI } from './platforms/platform-factory';
 import { PlatformAPI, TagOptions, RepoType } from './types';
-
-/**
- * Determine base URL for platform
- */
-function determineBaseUrl(
-  platform: RepoType,
-  providedBaseUrl: string | undefined,
-  repoUrl: string | undefined,
-  logger: Logger
-): string | undefined {
-  if (providedBaseUrl) {
-    return providedBaseUrl;
-  }
-
-  switch (platform) {
-    case 'github':
-      return 'https://api.github.com';
-    case 'gitea':
-      // For Gitea, try to detect from repository URL first
-      if (repoUrl) {
-        try {
-          const url = new URL(repoUrl);
-          const baseUrl = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}/api/v1`;
-          logger.debug(`Detected Gitea base URL from repository URL: ${baseUrl}`);
-          return baseUrl;
-        } catch (error) {
-          logger.debug(`Failed to parse repository URL: ${repoUrl}, will try environment variables`);
-        }
-      }
-      
-      // If not set from repository URL, try environment variables
-      const serverUrl = process.env.GITHUB_SERVER_URL || process.env.GITEA_SERVER_URL || process.env.GITEA_API_URL;
-      if (serverUrl) {
-        const baseUrl = `${serverUrl.replace(/\/$/, '')}/api/v1`;
-        logger.debug(`Using Gitea base URL from environment: ${baseUrl}`);
-        return baseUrl;
-      }
-      logger.debug('Using default Gitea base URL: https://gitea.com/api/v1');
-      return 'https://gitea.com/api/v1';
-    case 'bitbucket':
-      return 'https://api.bitbucket.org/2.0';
-    default:
-      return undefined;
-  }
-}
-
-/**
- * Create platform API instance
- */
-function createPlatformAPI(
-  repoType: RepoType,
-  repoInfo: { owner: string; repo: string; platform: RepoType; url?: string },
-  config: {
-    token?: string;
-    baseUrl?: string;
-    ignoreCertErrors: boolean;
-    verbose: boolean;
-    pushTag?: boolean;
-  },
-  logger: Logger
-): PlatformAPI {
-  const platformConfig = {
-    type: repoType,
-    baseUrl: config.baseUrl,
-    token: config.token,
-    ignoreCertErrors: config.ignoreCertErrors,
-    verbose: config.verbose,
-    pushTag: config.pushTag
-  };
-
-  switch (repoType) {
-    case 'github':
-      return new GitHubAPI(repoInfo, platformConfig, logger);
-    case 'gitea':
-      return new GiteaAPI(repoInfo, platformConfig, logger);
-    case 'bitbucket':
-      return new BitbucketAPI(repoInfo, platformConfig, logger);
-    case 'generic':
-    case 'git':
-    default:
-      return new GenericGitAPI(repoInfo, platformConfig, logger);
-  }
-}
 
 /**
  * Main action function
@@ -166,9 +80,9 @@ export async function run(): Promise<void> {
     if (!sha) {
       if (usePlatformAPI) {
         // When using platform API, get HEAD SHA from the remote repository
-        const platformAPI = createPlatformAPI(
-          repoInfo.platform,
+        const { platform, api: platformAPI } = await createPlatformAPI(
           repoInfo,
+          inputs.repoType,
           {
             token: resolvedToken,
             baseUrl: inputs.baseUrl,
@@ -178,6 +92,7 @@ export async function run(): Promise<void> {
           },
           logger
         );
+        repoInfo.platform = platform;
         sha = await platformAPI.getHeadSha();
         logger.debug(`Using HEAD SHA from remote repository: ${sha}`);
       } else if (useLocalGit) {
@@ -187,6 +102,10 @@ export async function run(): Promise<void> {
           'tag_sha is required when not running in a local Git repository and not using a platform API'
         );
       }
+    }
+
+    if (!sha) {
+      throw new Error('Failed to resolve tag SHA');
     }
 
     // Prepare tag options
@@ -241,60 +160,21 @@ export async function run(): Promise<void> {
         logger.debug('push_tag is false, skipping tag push');
       }
     } else {
-      // Use platform API
-      logger.info(`Using ${repoInfo.platform} API`);
-
-      // Determine base URL for platform
-      let baseUrl = inputs.baseUrl;
-      if (!baseUrl) {
-        switch (repoInfo.platform) {
-          case 'github':
-            baseUrl = 'https://api.github.com';
-            break;
-          case 'gitea':
-            // For Gitea, try to detect from repository URL first
-            if (repoInfo.url) {
-              try {
-                const url = new URL(repoInfo.url);
-                baseUrl = `${url.protocol}//${url.hostname}${url.port ? `:${url.port}` : ''}/api/v1`;
-                logger.debug(`Detected Gitea base URL from repository URL: ${baseUrl}`);
-              } catch (error) {
-                // If URL parsing fails, fall through to environment variable checks
-                logger.debug(`Failed to parse repository URL: ${repoInfo.url}, will try environment variables`);
-              }
-            }
-            
-            // If not set from repository URL, try environment variables
-            if (!baseUrl) {
-              // GITHUB_SERVER_URL is provided by both GitHub Actions and Gitea Actions
-              const serverUrl = process.env.GITHUB_SERVER_URL || process.env.GITEA_SERVER_URL || process.env.GITEA_API_URL;
-              if (serverUrl) {
-                baseUrl = `${serverUrl.replace(/\/$/, '')}/api/v1`;
-                logger.debug(`Using Gitea base URL from environment: ${baseUrl}`);
-              } else {
-                baseUrl = 'https://gitea.com/api/v1';
-                logger.debug('Using default Gitea base URL: https://gitea.com/api/v1');
-              }
-            }
-            break;
-          case 'bitbucket':
-            baseUrl = 'https://api.bitbucket.org/2.0';
-            break;
-        }
-      }
-
-      const platformAPI = createPlatformAPI(
-        repoInfo.platform,
+      // Use platform API via factory (hostname-first, then per-platform detection)
+      const { platform, api: platformAPI } = await createPlatformAPI(
         repoInfo,
+        inputs.repoType,
         {
           token: resolvedToken,
-          baseUrl,
+          baseUrl: inputs.baseUrl,
           ignoreCertErrors: inputs.ignoreCertErrors,
           verbose: inputs.verbose,
           pushTag: inputs.pushTag
         },
         logger
       );
+      repoInfo.platform = platform;
+      logger.info(`Using ${platform} API`);
 
       // Check if tag exists
       const exists = await platformAPI.tagExists(inputs.tagName);

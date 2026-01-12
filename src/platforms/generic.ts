@@ -1,4 +1,4 @@
-import { PlatformAPI, TagOptions, TagResult, RepositoryInfo, PlatformConfig } from '../types';
+import { PlatformAPI, TagOptions, TagResult, RepositoryInfo, PlatformConfig, RepoType } from '../types';
 import { Logger } from '../logger';
 import {
   tagExistsLocally,
@@ -126,3 +126,17 @@ export class GenericGitAPI implements PlatformAPI {
   }
 }
 
+export function detectFromUrlByHostname(_url: URL): RepoType | undefined {
+  // Generic detection does not detect from hostname
+  return undefined;
+}
+
+export async function detectFromUrl(_url: URL, _logger: Logger): Promise<RepoType | undefined> {
+  // Generic detection does not probe; factory will fall back to generic when others do not match.
+  return undefined;
+}
+
+export function determineBaseUrl(_urls: string | string[]): string | undefined {
+  // Generic Git does not need a base URL
+  return undefined;
+}

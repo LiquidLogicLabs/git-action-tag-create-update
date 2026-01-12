@@ -1,21 +1,21 @@
 /**
- * E2E tests for Gitea platform
- * Tests the full action workflow with real Gitea API calls
+ * E2E tests for GitHub platform
+ * Tests the full action workflow with real GitHub API calls
  * 
  * Required environment variables:
- * - TEST_GITEA_REPOSITORY: Repository in owner/repo format (e.g., "owner/repo")
- * - TEST_GITEA_TOKEN: Gitea personal access token with repo scope
- * - TEST_GITEA_BASE_URL: Gitea base URL (e.g., "https://gitea.com/api/v1" or custom server)
+ * - TEST_GITHUB_REPOSITORY: Repository in owner/repo format (e.g., "owner/repo")
+ * - TEST_GITHUB_TOKEN: GitHub personal access token with repo scope
  * - TEST_TAG_PREFIX: Prefix for test tags (default: "test-")
  */
 
 import * as core from '@actions/core';
 import * as exec from '@actions/exec';
-import { run } from '../index';
-import { GiteaAPI } from '../platforms/gitea';
-import { Logger } from '../logger';
-import { RepositoryInfo, PlatformConfig } from '../types';
+import { run } from '../../index';
+import { GitHubAPI } from '../../platforms/github';
+import { Logger } from '../../logger';
+import { RepositoryInfo, PlatformConfig } from '../../types';
 
+// Mock @actions/core to capture outputs
 jest.mock('@actions/core', () => ({
   getInput: jest.fn(),
   getBooleanInput: jest.fn(),
@@ -28,28 +28,21 @@ jest.mock('@actions/core', () => ({
   setSecret: jest.fn()
 }));
 
-describe('Gitea E2E Tests', () => {
-  const repository = process.env.TEST_GITEA_REPOSITORY;
-  const token = process.env.TEST_GITEA_TOKEN;
-  const baseUrl = process.env.TEST_GITEA_BASE_URL || 'https://gitea.com/api/v1';
+describe('GitHub E2E Tests', () => {
+  const repository = process.env.TEST_GITHUB_REPOSITORY;
+  const token = process.env.TEST_GITHUB_TOKEN;
   const tagPrefix = process.env.TEST_TAG_PREFIX || 'test-';
   const uniqueId = Date.now().toString();
   
   let testTagName: string;
-  let api: GiteaAPI;
+  let api: GitHubAPI;
   let repoInfo: RepositoryInfo;
-  let repoUrl: string;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
 
   beforeAll(() => {
     // Prevent action from auto-running when imported
     process.env.SKIP_RUN = 'true';
-    
     if (!repository || !token) {
-      console.log('⚠️ Skipping Gitea E2E tests: TEST_GITEA_REPOSITORY or TEST_GITEA_TOKEN not set');
+      console.log('⚠️ Skipping GitHub E2E tests: TEST_GITHUB_REPOSITORY or TEST_GITHUB_TOKEN not set');
       return;
     }
 
@@ -58,33 +51,29 @@ describe('Gitea E2E Tests', () => {
       throw new Error(`Invalid repository format: ${repository}. Expected "owner/repo"`);
     }
 
-    // Extract host from base URL
-    const urlMatch = baseUrl.match(/^(https?:\/\/[^/]+)/);
-    const host = urlMatch ? urlMatch[1] : 'https://gitea.com';
-    repoUrl = `${host}/${owner}/${repo}.git`;
-
     repoInfo = {
       owner,
       repo,
-      platform: 'gitea',
-      url: repoUrl
+      platform: 'github',
+      url: `https://github.com/${owner}/${repo}.git`
     };
 
     const config: PlatformConfig = {
-      type: 'gitea',
+      type: 'github',
       token,
-      baseUrl,
+      baseUrl: 'https://api.github.com',
       ignoreCertErrors: false,
       verbose: true,
       pushTag: false
     };
 
     const logger = new Logger(true);
-    api = new GiteaAPI(repoInfo, config, logger);
+    api = new GitHubAPI(repoInfo, config, logger);
     testTagName = `${tagPrefix}${uniqueId}`;
   });
 
   afterEach(async () => {
+    // Clean up test tags
     if (api && testTagName) {
       try {
         await api.deleteTag(testTagName);
@@ -94,20 +83,24 @@ describe('Gitea E2E Tests', () => {
     }
   });
 
-  it('should create a new tag via Gitea API', async () => {
+  it('should create a new tag via GitHub API', async () => {
     if (!repository || !token) {
       return;
     }
 
     const tagName = `${testTagName}-create`;
-    const commitSha = await getLatestCommitSha(repoInfo, repoUrl, token);
+    const tagMessage = 'E2E test: Create tag';
+    
+    // Get latest commit SHA
+    const commitSha = await getLatestCommitSha(repoInfo);
 
+    // Set up inputs
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
         case 'tag_name':
           return tagName;
         case 'tag_message':
-          return 'E2E test: Create tag';
+          return tagMessage;
         case 'tag_sha':
           return commitSha;
         case 'repository':
@@ -115,64 +108,66 @@ describe('Gitea E2E Tests', () => {
         case 'token':
           return token;
         case 'repo_type':
-          return 'gitea';
-        case 'base_url':
-          return baseUrl;
+          return 'github';
         default:
           return '';
       }
     });
     (core.getBooleanInput as jest.Mock).mockReturnValue(false);
 
+    // Run the action
     await run();
 
+    // Verify tag was created via API
     const exists = await api.tagExists(tagName);
     expect(exists).toBe(true);
 
+    // Verify outputs
     expect(core.setOutput).toHaveBeenCalledWith('tag_name', tagName);
     expect(core.setOutput).toHaveBeenCalledWith('tag_created', 'true');
-    expect(core.setOutput).toHaveBeenCalledWith('platform', 'gitea');
+    expect(core.setOutput).toHaveBeenCalledWith('tag_exists', 'false');
+    expect(core.setOutput).toHaveBeenCalledWith('platform', 'github');
 
+    // Cleanup
     await api.deleteTag(tagName);
   });
 
-  it('should update an existing tag via Gitea API', async () => {
+  it('should update an existing tag via GitHub API', async () => {
     if (!repository || !token) {
       return;
     }
 
     const tagName = `${testTagName}-update`;
-    const commitSha = await getLatestCommitSha(repoInfo, repoUrl, token);
+    const commitSha = await getLatestCommitSha(repoInfo);
 
+    // Create initial tag
     await api.createTag({
       tagName,
       sha: commitSha,
       message: 'Initial tag',
-    gpgSign: false,
+      gpgSign: false,
       force: false,
       verbose: false
     });
 
-    const preExists = await api.tagExists(tagName);
-    expect(preExists).toBe(true);
-    console.log(`Pre-update tagExists for ${tagName}: ${preExists}`);
+    // Update the tag with new message
+    const newMessage = 'E2E test: Updated tag';
+    const newCommitSha = commitSha; // Use same SHA for update test
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
         case 'tag_name':
           return tagName;
         case 'tag_message':
-          return 'E2E test: Updated tag';
+          return newMessage;
         case 'tag_sha':
-          return commitSha;
+          return newCommitSha;
         case 'repository':
           return repository;
         case 'token':
           return token;
         case 'repo_type':
-          return 'gitea';
-        case 'base_url':
-          return baseUrl;
+          return 'github';
         case 'update_existing':
           return 'true';
         case 'force':
@@ -185,35 +180,62 @@ describe('Gitea E2E Tests', () => {
       return name === 'update_existing' || name === 'force' || name === 'verbose';
     });
 
+    // Run the action
     await run();
 
-    const postExists = await api.tagExists(tagName);
-    console.log(`Post-update tagExists for ${tagName}: ${postExists}`);
-    console.log(`setOutput calls: ${JSON.stringify((core.setOutput as jest.Mock).mock.calls, null, 2)}`);
-    console.log(`getBooleanInput calls: ${JSON.stringify((core.getBooleanInput as jest.Mock).mock.calls, null, 2)}`);
-    console.log(`getInput calls: ${JSON.stringify((core.getInput as jest.Mock).mock.calls, null, 2)}`);
-
+    // Verify outputs
     expect(core.setOutput).toHaveBeenCalledWith('tag_updated', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tag_exists', 'true');
+
+    // Cleanup
+    await api.deleteTag(tagName);
+  });
+
+  it('should detect platform automatically from repository URL', async () => {
+    if (!repository || !token) {
+      return;
+    }
+
+    const tagName = `${testTagName}-auto`;
+    const commitSha = await getLatestCommitSha(repoInfo);
+
+    (core.getInput as jest.Mock).mockImplementation((name: string) => {
+      switch (name) {
+        case 'tag_name':
+          return tagName;
+        case 'tag_message':
+          return 'Auto-detect test';
+        case 'tag_sha':
+          return commitSha;
+        case 'repository':
+          return repository;
+        case 'token':
+          return token;
+        case 'repo_type':
+          return 'auto'; // Auto-detect
+        default:
+          return '';
+      }
+    });
+    (core.getBooleanInput as jest.Mock).mockReturnValue(false);
+
+    await run();
+
+    // Verify platform was detected correctly
+    expect(core.setOutput).toHaveBeenCalledWith('platform', 'github');
+    expect(core.setFailed).not.toHaveBeenCalled();
+
+    // Cleanup
     await api.deleteTag(tagName);
   });
 });
 
-async function getLatestCommitSha(
-  repoInfo: RepositoryInfo,
-  repoUrl: string,
-  token?: string
-): Promise<string> {
-  let authUrl = repoUrl;
-  if (token && repoUrl.startsWith('https://')) {
-    const u = new URL(repoUrl);
-    // Use token as password with a dummy username to satisfy basic auth
-    u.username = 'token';
-    u.password = token;
-    authUrl = u.toString();
-  }
-
+/**
+ * Get the latest commit SHA from a repository
+ */
+async function getLatestCommitSha(repoInfo: RepositoryInfo): Promise<string> {
   const output: string[] = [];
-  await exec.exec('git', ['ls-remote', '--heads', authUrl, 'main'], {
+  await exec.exec('git', ['ls-remote', '--heads', `https://github.com/${repoInfo.owner}/${repoInfo.repo}.git`, 'main'], {
     silent: true,
     listeners: {
       stdout: (data: Buffer) => {
@@ -224,7 +246,7 @@ async function getLatestCommitSha(
   
   const sha = output.join('').split('\t')[0].trim();
   if (!sha || sha.length !== 40) {
-    throw new Error(`Failed to get commit SHA from ${repoUrl}`);
+    throw new Error(`Failed to get commit SHA from ${repoInfo.owner}/${repoInfo.repo}`);
   }
   return sha;
 }
