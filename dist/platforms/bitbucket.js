@@ -70,7 +70,22 @@ class BitbucketAPI {
             },
             message: message || `Tag ${tagName}`
         };
-        await this.client.post(path, tagData);
+        try {
+            await this.client.post(path, tagData);
+        }
+        catch (error) {
+            const msg = error instanceof Error ? error.message.toLowerCase() : '';
+            // If the tag already exists and force is enabled, delete and retry
+            if ((msg.includes('409') || msg.includes('422') || msg.includes('already exists')) && options.force) {
+                this.logger.info(`Tag ${tagName} exists but force is enabled, deleting and recreating`);
+                await this.deleteTag(tagName);
+                // Retry creation
+                await this.client.post(path, tagData);
+            }
+            else {
+                throw error;
+            }
+        }
         this.logger.info(`Tag created successfully: ${tagName}`);
         return {
             tagName,

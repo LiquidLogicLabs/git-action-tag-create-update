@@ -69,10 +69,28 @@ class GitHubAPI {
         const tagResponse = await this.client.post(path, tagObject);
         // Create ref pointing to the tag
         const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`;
-        await this.client.post(refPath, {
-            ref: `refs/tags/${tagName}`,
-            sha: tagResponse.sha
-        });
+        try {
+            await this.client.post(refPath, {
+                ref: `refs/tags/${tagName}`,
+                sha: tagResponse.sha
+            });
+        }
+        catch (error) {
+            const msg = error instanceof Error ? error.message.toLowerCase() : '';
+            // If the ref already exists and force is enabled, delete and retry
+            if ((msg.includes('422') || msg.includes('reference already exists')) && options.force) {
+                this.logger.info(`Ref ${tagName} exists but force is enabled, deleting and recreating`);
+                await this.deleteTag(tagName);
+                // Retry ref creation
+                await this.client.post(refPath, {
+                    ref: `refs/tags/${tagName}`,
+                    sha: tagResponse.sha
+                });
+            }
+            else {
+                throw error;
+            }
+        }
         this.logger.info(`Tag created successfully: ${tagName}`);
         return {
             tagName,

@@ -99,23 +99,47 @@ class GiteaAPI {
         }
         catch (error) {
             const msg = error instanceof Error ? error.message.toLowerCase() : '';
-            // If the tag already exists, surface a graceful result instead of failing the workflow
+            // If the tag already exists and force is enabled, delete and retry
             if (msg.includes('409') && msg.includes('tag already exists')) {
-                this.logger.warning(`Tag ${tagName} already exists (detected during create)`);
-                return {
-                    tagName,
-                    sha,
-                    exists: true,
-                    created: false,
-                    updated: false
-                };
-            }
-            // Fallback to refs API on method/endpoint errors (405/404)
-            if (msg.includes('405') || msg.includes('404')) {
-                await tryCreateViaRefs();
+                if (updateRequested) {
+                    // Force update: delete and retry
+                    this.logger.info(`Tag ${tagName} exists but force is enabled, deleting and recreating`);
+                    await this.deleteTag(tagName);
+                    // Retry creation
+                    try {
+                        await this.client.post(createTagPath, tagData);
+                    }
+                    catch (retryError) {
+                        // If retry also fails with 405/404, try fallback
+                        const retryMsg = retryError instanceof Error ? retryError.message.toLowerCase() : '';
+                        if (retryMsg.includes('405') || retryMsg.includes('404')) {
+                            await tryCreateViaRefs();
+                        }
+                        else {
+                            throw retryError;
+                        }
+                    }
+                }
+                else {
+                    // No force: surface a graceful result
+                    this.logger.warning(`Tag ${tagName} already exists (detected during create)`);
+                    return {
+                        tagName,
+                        sha,
+                        exists: true,
+                        created: false,
+                        updated: false
+                    };
+                }
             }
             else {
-                throw error;
+                // Fallback to refs API on method/endpoint errors (405/404)
+                if (msg.includes('405') || msg.includes('404')) {
+                    await tryCreateViaRefs();
+                }
+                else {
+                    throw error;
+                }
             }
         }
         this.logger.info(`Tag created successfully: ${tagName}`);
