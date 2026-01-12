@@ -58,7 +58,7 @@ describe('Platform Detection Functions', () => {
         expect(result).toBe('gitea');
       });
 
-      it('should detect self-hosted gitea', () => {
+      it('should not detect self-hosted gitea without "gitea" in hostname', () => {
         const url = new URL('https://git.ravenwolf.org/owner/repo');
         // This should NOT detect as gitea from hostname (no "gitea" in hostname)
         const result = detectGiteaFromUrlByHostname(url);
