@@ -475,10 +475,10 @@ jobs:
 
 **For Node.js Actions:**
 
-Create a reusable E2E tests workflow that runs end-to-end tests with real API calls:
+Create a reusable E2E tests workflow that **directly tests the action** (not via npm). E2E tests should use the action as it would be used in real workflows:
 
 ```yaml
-name: E2E Tests
+name: Tests - E2E
 
 on:
   workflow_call:  # Called by release workflow
@@ -491,62 +491,65 @@ jobs:
   e2e:
     # Runs for workflow_call/workflow_dispatch; tag pushes are not used here
     runs-on: ubuntu-latest
-    environment: TEST
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          fetch-depth: 0  # Full history needed for git operations
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Test - Scenario 1
+        id: test-scenario-1
+        uses: ./
+        with:
+          input-name: 'value1'
 
-      - name: Build
-        run: npm run build
+      - name: Verify Scenario 1 results
+        run: |
+          if [ -z "${{ steps.test-scenario-1.outputs.output-name }}" ]; then
+            echo "❌ Output is empty"
+            exit 1
+          fi
+          echo "✅ Scenario 1 passed"
 
-      - name: Run E2E tests
-        env:
-          # GitHub E2E test configuration
-          # Note: GitHub doesn't allow GITHUB_* secrets in environments, so we use TEST_GITHUB_TOKEN
-          # This token is set in TEST environment and provides access to private test repositories
-          TEST_GITHUB_REPO: ${{ vars.TEST_GITHUB_REPO || 'org/repo' }}
-          GITHUB_TOKEN: ${{ secrets.TEST_GITHUB_TOKEN }}
-          # Gitea E2E test configuration (optional)
-          # Note: GitHub doesn't allow GITHUB_* secrets in environments, so we use TEST_GITEA_TOKEN
-          # This token is set in TEST environment and provides access to private test repositories
-          TEST_GITEA_REPO: ${{ vars.TEST_GITEA_REPO || 'owner/repo' }}
-          TEST_GITEA_URL: ${{ vars.TEST_GITEA_URL || 'https://gitea.example.com' }}
-          GITEA_TOKEN: ${{ secrets.TEST_GITEA_TOKEN }}
-        run: npm run test:e2e
+      - name: Test - Scenario 2
+        id: test-scenario-2
+        uses: ./
+        with:
+          input-name: 'value2'
+
+      - name: Verify Scenario 2 results
+        run: |
+          if [ -z "${{ steps.test-scenario-2.outputs.output-name }}" ]; then
+            echo "❌ Output is empty"
+            exit 1
+          fi
+          echo "✅ Scenario 2 passed"
+
+      - name: Test Summary
+        run: |
+          echo "## ✅ E2E Tests Complete" >> $GITHUB_STEP_SUMMARY
+          echo "All E2E tests passed successfully!" >> $GITHUB_STEP_SUMMARY
 ```
 
 **Key Points:**
 
-- **Single TEST environment**: Uses one `TEST` environment for all test secrets/variables
+- **Direct action testing**: E2E tests should use `uses: ./` to directly call the action, NOT `npm run test:e2e`
+- **Real workflow usage**: Tests the action exactly as it would be used in real workflows
+- **Output verification**: Verify all outputs are correct and non-empty
+- **Multiple scenarios**: Test various input combinations and edge cases
+- **No npm dependencies**: E2E tests don't require npm, build, or test infrastructure
+- **Manual triggers**: Supports `workflow_dispatch` for manual testing
+- **Secrets inherit**: When called from release workflow, use `secrets: inherit` to pass repository secrets if needed
+
+**For actions that require external API access** (e.g., GitHub/Gitea API calls), you may need:
+
+- **TEST environment**: Optional environment for test secrets/variables
 - **Environment variables**: Uses `vars` for non-sensitive configuration (repositories, URLs)
 - **Environment secrets**: Uses `secrets` for sensitive tokens (TEST_GITHUB_TOKEN, TEST_GITEA_TOKEN)
 - **Token naming**: Uses `TEST_GITHUB_TOKEN` and `TEST_GITEA_TOKEN` instead of `GITHUB_TOKEN` in environment secrets (GitHub doesn't allow GITHUB_* secrets in environments)
 - **Graceful skipping**: E2E tests should gracefully skip if test repositories/tokens are not configured
-- **Real API calls**: E2E tests execute real API calls to verify full integration
-- **Manual triggers**: Supports `workflow_dispatch` for manual testing
-- **Secrets inherit**: When called from release workflow, use `secrets: inherit` to pass repository secrets if needed
 
-**Environment Setup:**
-
-The `TEST` environment should contain:
-
-**Variables:**
-- `TEST_GITHUB_REPO` - Repository in `owner/repo` format (e.g., `org/test-repo`)
-- `TEST_GITEA_REPO` - Repository in `owner/repo` format (optional)
-- `TEST_GITEA_URL` - Gitea base URL (optional)
-
-**Secrets:**
-- `TEST_GITHUB_TOKEN` - GitHub personal access token with `repo` scope
-- `TEST_GITEA_TOKEN` - Gitea personal access token with `repo` scope (optional)
+**Note**: For actions that only use local git commands (like this commit info action), no external API access or TEST environment is needed.
 
 ### Release Workflow (.github/workflows/release.yml)
 
@@ -785,7 +788,7 @@ jobs:
 - **Manual Triggers**: All workflows (`ci.yml`, `test.yml`, `e2e-tests.yml`, `release.yml`) should support `workflow_dispatch` for manual triggering
 - **Skip on Tag Pushes**: CI workflows should use `tags-ignore: ['**']` in the push trigger to ignore tag pushes (release workflow handles tag pushes). This works correctly when workflows are called via `workflow_call`.
 - **CI Workflow**: Should ignore tag pushes using `tags-ignore: ['**']` in the push trigger instead of job conditions. This avoids issues when workflows are called via `workflow_call` and simplifies the configuration.
-- **E2E Tests Pattern**: Use single `TEST` environment with `vars` for configuration and `secrets` for tokens; use `TEST_GITHUB_TOKEN` and `TEST_GITEA_TOKEN` (GitHub doesn't allow `GITHUB_*` secrets in environments)
+- **E2E Tests Pattern**: E2E tests should directly test the action using `uses: ./` (not via npm). For actions requiring external API access, use single `TEST` environment with `vars` for configuration and `secrets` for tokens; use `TEST_GITHUB_TOKEN` and `TEST_GITEA_TOKEN` (GitHub doesn't allow `GITHUB_*` secrets in environments)
 - **Floating Tags**: Use `LiquidLogicLabs/git-floating-version-tags-action@v1` to create/update major (`v1`), minor (`v1.2`), and `latest` tags for stable releases
 - **Version Validation**: Use `LiquidLogicLabs/git-tag-validate-version-action@v1` for version format validation and component extraction
 - **Release Action**: Use `LiquidLogicLabs/git-action-release@v1` for creating releases (supports GitHub, Gitea, and self-hosted Gitea)
