@@ -80,14 +80,14 @@ function getInputs() {
     const tagSha = getOptionalInput('tag_sha');
     const repository = getOptionalInput('repository');
     const token = getOptionalInput('token');
-    const updateExisting = getBooleanInput('update_existing', false);
+    const force = getBooleanInput('force', false);
+    const updateExisting = getBooleanInput('update_existing', false) || force;
     const gpgSign = getBooleanInput('gpg_sign', false);
     const gpgKeyId = getOptionalInput('gpg_key_id');
     const repoTypeStr = core.getInput('repo_type') || 'auto';
     const repoType = parseRepoType(repoTypeStr);
     const baseUrl = getOptionalInput('base_url');
     const ignoreCertErrors = getBooleanInput('ignore_cert_errors', false);
-    const force = getBooleanInput('force', false);
     const verbose = getBooleanInput('verbose', false);
     const pushTag = getBooleanInput('push_tag', true);
     const gitUserName = getOptionalInput('git_user_name');
