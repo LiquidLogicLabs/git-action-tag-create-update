@@ -36,18 +36,6 @@ jobs:
           NPM_REGISTRY_URL: ${{ vars.NPM_REGISTRY_URL || env.NPM_REGISTRY_URL }}
           NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN || env.NPM_REGISTRY_TOKEN }}
 
-      - name: Install git-platform-detector from custom registry
-        if: env.NPM_REGISTRY_URL != '' && env.NPM_REGISTRY_TOKEN != ''
-        run: |
-          REGISTRY_URL="${{ vars.NPM_REGISTRY_URL || env.NPM_REGISTRY_URL }}"
-          REGISTRY_HOST=$(echo "$REGISTRY_URL" | sed -e 's#^https\?://##' -e 's#/*$##')
-          echo "//${REGISTRY_HOST}/:_authToken=${{ secrets.NPM_REGISTRY_TOKEN || env.NPM_REGISTRY_TOKEN }}" >> ~/.npmrc
-          PACKAGE_URL="${REGISTRY_URL%/}/git-platform-detector/-/git-platform-detector-1.1.0.tgz"
-          npm install git-platform-detector@${PACKAGE_URL} --no-save
-        env:
-          NPM_REGISTRY_URL: ${{ vars.NPM_REGISTRY_URL || env.NPM_REGISTRY_URL }}
-          NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN || env.NPM_REGISTRY_TOKEN }}
-
       - name: Install dependencies
         run: npm ci
 
