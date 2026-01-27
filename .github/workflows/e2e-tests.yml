@@ -120,6 +120,14 @@ jobs:
           echo "token=$token" >> "$GITHUB_OUTPUT"
           echo "base_url=$base_url" >> "$GITHUB_OUTPUT"
 
+      - name: Configure Git user (for git/generic platform)
+        if: steps.resolve.outputs.run == 'true' && (matrix.platform == 'git' || matrix.platform == 'generic')
+        run: |
+          # Configure git user for annotated tags (required by Git)
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          echo "✅ Configured git user for local Git operations"
+
       - name: Run E2E via action (${{ matrix.platform }})
         if: steps.resolve.outputs.run == 'true'
         uses: ./
@@ -132,4 +140,5 @@ jobs:
           repo_type: ${{ matrix.platform }}
           force: true
           update_existing: false
+          push_tag: ${{ matrix.platform == 'git' || matrix.platform == 'generic' ? 'false' : 'true' }}
           verbose: true
