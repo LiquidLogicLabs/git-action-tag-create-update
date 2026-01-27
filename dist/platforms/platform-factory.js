@@ -104,12 +104,16 @@ async function collectCandidateUrls(repoInfo, logger) {
 }
 async function resolvePlatform(repoInfo, repoType, logger, token) {
     if (repoType !== 'auto') {
+        // git-platform-detector now supports 'git' and 'local' as aliases for 'generic'
         (0, git_platform_detector_1.createByName)(repoType, { providers: (0, git_platform_detector_1.getBuiltInProviders)() });
-        return repoType;
+        // Return 'generic' for 'git' to maintain consistency with internal provider types
+        return repoType === 'git' ? 'generic' : repoType;
     }
     if (repoInfo.platform !== 'auto') {
+        // git-platform-detector now supports 'git' and 'local' as aliases for 'generic'
         (0, git_platform_detector_1.createByName)(repoInfo.platform, { providers: (0, git_platform_detector_1.getBuiltInProviders)() });
-        return repoInfo.platform;
+        // Return 'generic' for 'git' to maintain consistency with internal provider types
+        return repoInfo.platform === 'git' ? 'generic' : repoInfo.platform;
     }
     // Collect candidate URLs
     const candidateUrls = await collectCandidateUrls(repoInfo, logger);
