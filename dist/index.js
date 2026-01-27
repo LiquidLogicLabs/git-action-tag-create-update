@@ -3195,6 +3195,748 @@ function copyFile(srcFile, destFile, force) {
 
 /***/ }),
 
+/***/ 5466:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.detectPlatform = detectPlatform;
+const factory_1 = __nccwpck_require__(9652);
+const logger_1 = __nccwpck_require__(4752);
+const providers_1 = __nccwpck_require__(1823);
+const url_1 = __nccwpck_require__(6941);
+function scoreEvidence(type, providerId) {
+    if (type === 'explicit')
+        return 1.0;
+    if (type === 'hostname')
+        return providerId === 'generic' ? 0.2 : 0.8;
+    if (type === 'probe')
+        return providerId === 'generic' ? 0.2 : 0.6;
+    return providerId === 'generic' ? 0.1 : 0.3;
+}
+function resolveRepoInfo(urlInput, provider) {
+    if (!urlInput)
+        return {};
+    const url = (0, url_1.toUrl)(urlInput);
+    if (!url)
+        return {};
+    if (provider?.parseRepoUrl) {
+        return provider.parseRepoUrl(url);
+    }
+    return (0, url_1.parseOwnerRepo)(url);
+}
+async function detectPlatform(options) {
+    const logger = (0, logger_1.getLogger)(options.logger);
+    const providers = options.providers && options.providers.length > 0 ? options.providers : (0, providers_1.getBuiltInProviders)();
+    // Early detection: if we're in Gitea Actions environment, prefer Gitea provider
+    const env = options.env || process.env;
+    const isGiteaEnv = (0, url_1.isGiteaActionsEnvironment)(env);
+    if (isGiteaEnv) {
+        logger.debug('Gitea Actions environment detected - will prefer Gitea provider');
+    }
+    const candidateUrls = (0, url_1.collectCandidateUrls)({
+        repositoryUrl: options.repositoryUrl,
+        originUrl: options.originUrl,
+        extraUrls: options.extraUrls,
+        env: options.env
+    }, logger);
+    if (options.requestedProvider) {
+        const match = (0, factory_1.createByName)(options.requestedProvider, { providers });
+        const baseUrl = match.provider.determineBaseUrl(candidateUrls);
+        const repoInfo = resolveRepoInfo(options.repositoryUrl || candidateUrls[0], match.provider);
+        return {
+            providerId: match.provider.id,
+            baseUrl,
+            owner: repoInfo.owner,
+            repo: repoInfo.repo,
+            confidence: scoreEvidence(match.evidence.type, match.provider.id),
+            evidence: [match.evidence]
+        };
+    }
+    let fallbackMatch;
+    const allEvidence = [];
+    for (const url of candidateUrls) {
+        const match = await (0, factory_1.createByUrl)(url, {
+            providers,
+            credentials: options.credentials,
+            timeoutMs: options.timeoutMs,
+            allowInsecure: options.allowInsecure,
+            logger
+        });
+        if (!match) {
+            continue;
+        }
+        allEvidence.push(match.evidence);
+        if (match.provider.id !== 'generic') {
+            const baseUrl = match.provider.determineBaseUrl(candidateUrls);
+            const repoInfo = resolveRepoInfo(url, match.provider);
+            return {
+                providerId: match.provider.id,
+                baseUrl,
+                owner: repoInfo.owner,
+                repo: repoInfo.repo,
+                confidence: scoreEvidence(match.evidence.type, match.provider.id),
+                evidence: allEvidence
+            };
+        }
+        fallbackMatch = match;
+    }
+    // If we detected Gitea Actions environment but no specific provider matched,
+    // fall back to Gitea provider instead of generic
+    if (isGiteaEnv && (!fallbackMatch || fallbackMatch.provider.id === 'generic')) {
+        const giteaProvider = providers.find(provider => provider.id === 'gitea');
+        if (giteaProvider) {
+            logger.debug('Falling back to Gitea provider based on environment detection');
+            const baseUrl = giteaProvider.determineBaseUrl(candidateUrls) || env.GITHUB_SERVER_URL || env.GITEA_SERVER_URL;
+            const repoInfo = resolveRepoInfo(candidateUrls[0], giteaProvider);
+            return {
+                providerId: giteaProvider.id,
+                baseUrl,
+                owner: repoInfo.owner,
+                repo: repoInfo.repo,
+                confidence: 0.7, // High confidence from environment detection
+                evidence: [
+                    ...allEvidence,
+                    {
+                        type: 'fallback',
+                        providerId: giteaProvider.id,
+                        detail: 'Gitea Actions environment detected (GITEA_ACTIONS, GITEA_WORKSPACE, or non-GitHub GITHUB_SERVER_URL)'
+                    }
+                ]
+            };
+        }
+    }
+    if (fallbackMatch) {
+        const baseUrl = fallbackMatch.provider.determineBaseUrl(candidateUrls);
+        const repoInfo = resolveRepoInfo(candidateUrls[0], fallbackMatch.provider);
+        return {
+            providerId: fallbackMatch.provider.id,
+            baseUrl,
+            owner: repoInfo.owner,
+            repo: repoInfo.repo,
+            confidence: scoreEvidence(fallbackMatch.evidence.type, fallbackMatch.provider.id),
+            evidence: allEvidence
+        };
+    }
+    const generic = providers.find(provider => provider.id === 'generic');
+    if (!generic) {
+        throw new Error('No providers available for detection');
+    }
+    const baseUrl = generic.determineBaseUrl(candidateUrls);
+    const repoInfo = resolveRepoInfo(candidateUrls[0], generic);
+    return {
+        providerId: generic.id,
+        baseUrl,
+        owner: repoInfo.owner,
+        repo: repoInfo.repo,
+        confidence: scoreEvidence('fallback', generic.id),
+        evidence: [
+            {
+                type: 'fallback',
+                providerId: generic.id,
+                detail: 'No URL candidates or providers matched'
+            }
+        ]
+    };
+}
+//# sourceMappingURL=detector.js.map
+
+/***/ }),
+
+/***/ 9652:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createByName = createByName;
+exports.createByUrl = createByUrl;
+const logger_1 = __nccwpck_require__(4752);
+const providers_1 = __nccwpck_require__(1823);
+const url_1 = __nccwpck_require__(6941);
+function normalizeProviders(options) {
+    return options?.providers && options.providers.length > 0 ? options.providers : (0, providers_1.getBuiltInProviders)();
+}
+function createByName(name, options) {
+    const providers = normalizeProviders(options);
+    const provider = (0, providers_1.getProviderById)(name, providers);
+    if (!provider) {
+        throw new Error(`Unsupported provider: ${name}`);
+    }
+    return {
+        provider,
+        evidence: {
+            type: 'explicit',
+            providerId: provider.id,
+            detail: `Provider explicitly requested: ${name}`
+        }
+    };
+}
+async function createByUrl(urlInput, options) {
+    const providers = normalizeProviders(options);
+    const logger = (0, logger_1.getLogger)(options?.logger);
+    const url = (0, url_1.toUrl)(urlInput);
+    if (!url) {
+        logger.debug(`Could not parse URL: ${urlInput}`);
+        return undefined;
+    }
+    const probeContext = {
+        credentials: options?.credentials,
+        timeoutMs: options?.timeoutMs,
+        allowInsecure: options?.allowInsecure
+    };
+    for (const provider of providers) {
+        if (provider.id === 'generic') {
+            continue;
+        }
+        if (provider.isUrlMatch(url)) {
+            logger.debug(`Provider ${provider.id} matched by hostname for ${urlInput}`);
+            return {
+                provider,
+                evidence: {
+                    type: 'hostname',
+                    providerId: provider.id,
+                    url: urlInput,
+                    detail: `Hostname match for ${url.hostname}`
+                }
+            };
+        }
+    }
+    for (const provider of providers) {
+        if (provider.id === 'generic') {
+            continue;
+        }
+        const probe = await provider.probeApi(url, probeContext, logger);
+        if (probe.matched) {
+            logger.debug(`Provider ${provider.id} matched by API probe for ${urlInput}`);
+            return {
+                provider,
+                evidence: {
+                    type: 'probe',
+                    providerId: provider.id,
+                    url: urlInput,
+                    detail: probe.detail
+                }
+            };
+        }
+    }
+    if (options?.fallbackToGeneric === false) {
+        return undefined;
+    }
+    const generic = providers.find(provider => provider.id === 'generic');
+    if (generic) {
+        return {
+            provider: generic,
+            evidence: {
+                type: 'fallback',
+                providerId: generic.id,
+                url: urlInput,
+                detail: 'No provider matched; falling back to generic'
+            }
+        };
+    }
+    return undefined;
+}
+//# sourceMappingURL=factory.js.map
+
+/***/ }),
+
+/***/ 1530:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NoopLogger = exports.ConsoleLogger = exports.getProviderById = exports.getBuiltInProviders = exports.toUrl = exports.parseOwnerRepo = exports.isGiteaActionsEnvironment = exports.collectCandidateUrls = exports.createByUrl = exports.createByName = exports.detectPlatform = void 0;
+var detector_1 = __nccwpck_require__(5466);
+Object.defineProperty(exports, "detectPlatform", ({ enumerable: true, get: function () { return detector_1.detectPlatform; } }));
+var factory_1 = __nccwpck_require__(9652);
+Object.defineProperty(exports, "createByName", ({ enumerable: true, get: function () { return factory_1.createByName; } }));
+Object.defineProperty(exports, "createByUrl", ({ enumerable: true, get: function () { return factory_1.createByUrl; } }));
+var url_1 = __nccwpck_require__(6941);
+Object.defineProperty(exports, "collectCandidateUrls", ({ enumerable: true, get: function () { return url_1.collectCandidateUrls; } }));
+Object.defineProperty(exports, "isGiteaActionsEnvironment", ({ enumerable: true, get: function () { return url_1.isGiteaActionsEnvironment; } }));
+Object.defineProperty(exports, "parseOwnerRepo", ({ enumerable: true, get: function () { return url_1.parseOwnerRepo; } }));
+Object.defineProperty(exports, "toUrl", ({ enumerable: true, get: function () { return url_1.toUrl; } }));
+var providers_1 = __nccwpck_require__(1823);
+Object.defineProperty(exports, "getBuiltInProviders", ({ enumerable: true, get: function () { return providers_1.getBuiltInProviders; } }));
+Object.defineProperty(exports, "getProviderById", ({ enumerable: true, get: function () { return providers_1.getProviderById; } }));
+var logger_1 = __nccwpck_require__(4752);
+Object.defineProperty(exports, "ConsoleLogger", ({ enumerable: true, get: function () { return logger_1.ConsoleLogger; } }));
+Object.defineProperty(exports, "NoopLogger", ({ enumerable: true, get: function () { return logger_1.NoopLogger; } }));
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 4752:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ConsoleLogger = exports.NoopLogger = void 0;
+exports.getLogger = getLogger;
+class NoopLogger {
+    info() { }
+    warn() { }
+    debug() { }
+}
+exports.NoopLogger = NoopLogger;
+class ConsoleLogger {
+    info(message) {
+        console.info(message);
+    }
+    warn(message) {
+        console.warn(message);
+    }
+    debug(message) {
+        console.debug(message);
+    }
+}
+exports.ConsoleLogger = ConsoleLogger;
+function getLogger(logger) {
+    return logger ?? new NoopLogger();
+}
+//# sourceMappingURL=logger.js.map
+
+/***/ }),
+
+/***/ 726:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.bitbucketProvider = void 0;
+const http_1 = __nccwpck_require__(4267);
+const url_1 = __nccwpck_require__(6941);
+exports.bitbucketProvider = {
+    id: 'bitbucket',
+    displayName: 'Bitbucket',
+    isUrlMatch(url) {
+        return url.hostname === 'bitbucket.org' || url.hostname.endsWith('.bitbucket.org');
+    },
+    async probeApi(url, context) {
+        const origin = url.origin;
+        const headers = {
+            Accept: 'application/json',
+            'User-Agent': 'git-platform-detector',
+            ...(0, http_1.buildAuthHeaders)(context.credentials, 'bearer')
+        };
+        try {
+            const response = await (0, http_1.fetchWithTimeout)(`${origin}/rest/api/1.0/application-properties`, {
+                timeoutMs: context.timeoutMs,
+                headers
+            });
+            if (response.ok) {
+                return { matched: true, baseUrl: origin };
+            }
+            return { matched: false, detail: `Bitbucket probe status: ${response.status}` };
+        }
+        catch (error) {
+            return { matched: false, detail: `Bitbucket probe failed: ${String(error)}` };
+        }
+    },
+    determineBaseUrl(urls) {
+        for (const urlStr of urls) {
+            try {
+                const url = new URL(urlStr);
+                if (this.isUrlMatch(url)) {
+                    return url.origin;
+                }
+            }
+            catch {
+                continue;
+            }
+        }
+        for (const urlStr of urls) {
+            try {
+                return new URL(urlStr).origin;
+            }
+            catch {
+                continue;
+            }
+        }
+        return undefined;
+    },
+    parseRepoUrl(url) {
+        return (0, url_1.parseOwnerRepo)(url);
+    }
+};
+//# sourceMappingURL=bitbucket.js.map
+
+/***/ }),
+
+/***/ 906:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.genericProvider = void 0;
+const url_1 = __nccwpck_require__(6941);
+exports.genericProvider = {
+    id: 'generic',
+    displayName: 'Generic Git',
+    isUrlMatch() {
+        return false;
+    },
+    async probeApi() {
+        return { matched: false };
+    },
+    determineBaseUrl(urls) {
+        for (const urlStr of urls) {
+            try {
+                return new URL(urlStr).origin;
+            }
+            catch {
+                continue;
+            }
+        }
+        return undefined;
+    },
+    parseRepoUrl(url) {
+        return (0, url_1.parseOwnerRepo)(url);
+    }
+};
+//# sourceMappingURL=generic.js.map
+
+/***/ }),
+
+/***/ 8665:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.giteaProvider = void 0;
+const http_1 = __nccwpck_require__(4267);
+const url_1 = __nccwpck_require__(6941);
+exports.giteaProvider = {
+    id: 'gitea',
+    displayName: 'Gitea',
+    isUrlMatch(url) {
+        return url.hostname.endsWith('.gitea.io') || url.hostname.includes('gitea');
+    },
+    async probeApi(url, context) {
+        const apiBase = `${url.origin}/api/v1`;
+        const headers = {
+            Accept: 'application/json',
+            'User-Agent': 'git-platform-detector',
+            ...(0, http_1.buildAuthHeaders)(context.credentials, 'token')
+        };
+        try {
+            const response = await (0, http_1.fetchWithTimeout)(`${apiBase}/version`, {
+                timeoutMs: context.timeoutMs,
+                headers
+            });
+            if (response.ok) {
+                return { matched: true, baseUrl: url.origin };
+            }
+            return { matched: false, detail: `Gitea probe status: ${response.status}` };
+        }
+        catch (error) {
+            return { matched: false, detail: `Gitea probe failed: ${String(error)}` };
+        }
+    },
+    determineBaseUrl(urls) {
+        for (const urlStr of urls) {
+            try {
+                const url = new URL(urlStr);
+                if (this.isUrlMatch(url)) {
+                    return url.origin;
+                }
+            }
+            catch {
+                continue;
+            }
+        }
+        for (const urlStr of urls) {
+            try {
+                return new URL(urlStr).origin;
+            }
+            catch {
+                continue;
+            }
+        }
+        return undefined;
+    },
+    parseRepoUrl(url) {
+        return (0, url_1.parseOwnerRepo)(url);
+    }
+};
+//# sourceMappingURL=gitea.js.map
+
+/***/ }),
+
+/***/ 3832:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.githubProvider = void 0;
+const http_1 = __nccwpck_require__(4267);
+const url_1 = __nccwpck_require__(6941);
+function getApiBase(url) {
+    if (url.hostname === 'api.github.com') {
+        return 'https://api.github.com';
+    }
+    if (url.hostname === 'github.com' || url.hostname.endsWith('.github.com')) {
+        return 'https://api.github.com';
+    }
+    return `${url.origin}/api/v3`;
+}
+exports.githubProvider = {
+    id: 'github',
+    displayName: 'GitHub',
+    isUrlMatch(url) {
+        return url.hostname === 'github.com' || url.hostname === 'api.github.com' || url.hostname.endsWith('.github.com');
+    },
+    async probeApi(url, context) {
+        const apiBase = getApiBase(url);
+        const headers = {
+            Accept: 'application/vnd.github+json',
+            'User-Agent': 'git-platform-detector',
+            ...(0, http_1.buildAuthHeaders)(context.credentials, 'token')
+        };
+        try {
+            const response = await (0, http_1.fetchWithTimeout)(`${apiBase}/rate_limit`, {
+                timeoutMs: context.timeoutMs,
+                headers
+            });
+            if (response.ok) {
+                return { matched: true, baseUrl: url.origin };
+            }
+            return { matched: false, detail: `GitHub probe status: ${response.status}` };
+        }
+        catch (error) {
+            return { matched: false, detail: `GitHub probe failed: ${String(error)}` };
+        }
+    },
+    determineBaseUrl(urls) {
+        for (const urlStr of urls) {
+            try {
+                const url = new URL(urlStr);
+                if (this.isUrlMatch(url)) {
+                    return url.hostname === 'api.github.com' ? 'https://github.com' : url.origin;
+                }
+            }
+            catch {
+                continue;
+            }
+        }
+        for (const urlStr of urls) {
+            try {
+                return new URL(urlStr).origin;
+            }
+            catch {
+                continue;
+            }
+        }
+        return undefined;
+    },
+    parseRepoUrl(url) {
+        return (0, url_1.parseOwnerRepo)(url);
+    }
+};
+//# sourceMappingURL=github.js.map
+
+/***/ }),
+
+/***/ 4267:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.fetchWithTimeout = fetchWithTimeout;
+exports.buildBasicAuthHeader = buildBasicAuthHeader;
+exports.buildTokenHeader = buildTokenHeader;
+exports.buildAuthHeaders = buildAuthHeaders;
+async function fetchWithTimeout(url, options) {
+    const controller = new AbortController();
+    const timeout = options.timeoutMs ?? 5000;
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        return await fetch(url, {
+            method: 'GET',
+            headers: options.headers,
+            signal: controller.signal
+        });
+    }
+    finally {
+        clearTimeout(id);
+    }
+}
+function buildBasicAuthHeader(username, password) {
+    const token = Buffer.from(`${username}:${password}`).toString('base64');
+    return `Basic ${token}`;
+}
+function buildTokenHeader(token, scheme = 'bearer') {
+    return scheme === 'token' ? `token ${token}` : `Bearer ${token}`;
+}
+function buildAuthHeaders(credentials, scheme = 'bearer') {
+    if (!credentials)
+        return {};
+    if (credentials.username && credentials.password) {
+        return { Authorization: buildBasicAuthHeader(credentials.username, credentials.password) };
+    }
+    if (credentials.token) {
+        return { Authorization: buildTokenHeader(credentials.token, scheme) };
+    }
+    return {};
+}
+//# sourceMappingURL=http.js.map
+
+/***/ }),
+
+/***/ 1823:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getBuiltInProviders = getBuiltInProviders;
+exports.getProviderById = getProviderById;
+const bitbucket_1 = __nccwpck_require__(726);
+const generic_1 = __nccwpck_require__(906);
+const github_1 = __nccwpck_require__(3832);
+const gitea_1 = __nccwpck_require__(8665);
+const builtInProviders = [
+    gitea_1.giteaProvider,
+    github_1.githubProvider,
+    bitbucket_1.bitbucketProvider,
+    generic_1.genericProvider
+];
+function getBuiltInProviders() {
+    return [...builtInProviders];
+}
+function getProviderById(id, providers = builtInProviders) {
+    return providers.find(provider => provider.id === id);
+}
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
+/***/ 6941:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.toUrl = toUrl;
+exports.parseOwnerRepo = parseOwnerRepo;
+exports.isGiteaActionsEnvironment = isGiteaActionsEnvironment;
+exports.collectCandidateUrls = collectCandidateUrls;
+function normalizeUrlString(input) {
+    return input.trim();
+}
+function toUrl(input) {
+    const trimmed = normalizeUrlString(input);
+    if (!trimmed)
+        return undefined;
+    if (trimmed.includes('://')) {
+        try {
+            return new URL(trimmed);
+        }
+        catch {
+            return undefined;
+        }
+    }
+    if (trimmed.startsWith('git@')) {
+        const withoutPrefix = trimmed.replace(/^git@/, '');
+        const [hostPart, pathPart] = withoutPrefix.split(':');
+        if (!hostPart || !pathPart)
+            return undefined;
+        const path = pathPart.replace(/\.git$/, '');
+        return new URL(`https://${hostPart}/${path}`);
+    }
+    return undefined;
+}
+function parseOwnerRepo(url) {
+    const parts = url.pathname.replace(/^\/+/, '').replace(/\.git$/, '').split('/');
+    if (parts.length >= 2) {
+        return { owner: parts[0], repo: parts[1] };
+    }
+    return {};
+}
+/**
+ * Check if we're running in Gitea Actions environment
+ * Gitea Actions sets GITEA_ACTIONS=true or uses GITHUB_* vars with non-GitHub URLs
+ */
+function isGiteaActionsEnvironment(env) {
+    const e = env || process.env;
+    // Explicit Gitea indicator
+    if (e.GITEA_ACTIONS === 'true' || e.GITEA_ACTIONS === '1') {
+        return true;
+    }
+    // Gitea-specific workspace
+    if (e.GITEA_WORKSPACE) {
+        return true;
+    }
+    // GITHUB_SERVER_URL pointing to non-GitHub (Gitea compatibility mode)
+    const serverUrl = e.GITHUB_SERVER_URL;
+    if (serverUrl) {
+        try {
+            const url = new URL(serverUrl);
+            // If GITHUB_SERVER_URL doesn't point to github.com, it's likely Gitea
+            if (!url.hostname.includes('github.com') && !url.hostname.includes('github.io')) {
+                return true;
+            }
+        }
+        catch {
+            // Invalid URL, can't determine
+        }
+    }
+    return false;
+}
+function collectCandidateUrls(options, logger) {
+    const urls = [];
+    const pushUnique = (value) => {
+        if (!value)
+            return;
+        const normalized = normalizeUrlString(value);
+        if (!normalized)
+            return;
+        if (!urls.includes(normalized)) {
+            urls.push(normalized);
+            logger?.debug(`Added candidate URL: ${normalized}`);
+        }
+    };
+    pushUnique(options.repositoryUrl);
+    pushUnique(options.originUrl);
+    const env = options.env || process.env;
+    // If we detect Gitea Actions environment, prioritize Gitea URLs
+    const isGitea = isGiteaActionsEnvironment(env);
+    if (isGitea) {
+        logger?.debug('Detected Gitea Actions environment');
+        // Add Gitea URLs first for priority
+        pushUnique(env.GITEA_SERVER_URL);
+        pushUnique(env.GITEA_API_URL);
+        // In Gitea, GITHUB_SERVER_URL points to the Gitea server
+        pushUnique(env.GITHUB_SERVER_URL);
+        pushUnique(env.GITHUB_API_URL);
+    }
+    else {
+        // Standard order
+        pushUnique(env.GITHUB_SERVER_URL);
+        pushUnique(env.GITHUB_API_URL);
+        pushUnique(env.GITEA_SERVER_URL);
+        pushUnique(env.GITEA_API_URL);
+    }
+    pushUnique(env.BITBUCKET_SERVER_URL);
+    pushUnique(env.BITBUCKET_API_URL);
+    for (const extraUrl of options.extraUrls || []) {
+        pushUnique(extraUrl);
+    }
+    return urls;
+}
+//# sourceMappingURL=url.js.map
+
+/***/ }),
+
 /***/ 770:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -25643,676 +26385,6 @@ module.exports = {
 
 /***/ }),
 
-/***/ 3306:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.detectPlatform = detectPlatform;
-const factory_1 = __nccwpck_require__(4724);
-const logger_1 = __nccwpck_require__(2304);
-const providers_1 = __nccwpck_require__(1263);
-const url_1 = __nccwpck_require__(7421);
-function scoreEvidence(type, providerId) {
-    if (type === 'explicit')
-        return 1.0;
-    if (type === 'hostname')
-        return providerId === 'generic' ? 0.2 : 0.8;
-    if (type === 'probe')
-        return providerId === 'generic' ? 0.2 : 0.6;
-    return providerId === 'generic' ? 0.1 : 0.3;
-}
-function resolveRepoInfo(urlInput, provider) {
-    if (!urlInput)
-        return {};
-    const url = (0, url_1.toUrl)(urlInput);
-    if (!url)
-        return {};
-    if (provider?.parseRepoUrl) {
-        return provider.parseRepoUrl(url);
-    }
-    return (0, url_1.parseOwnerRepo)(url);
-}
-async function detectPlatform(options) {
-    const logger = (0, logger_1.getLogger)(options.logger);
-    const providers = options.providers && options.providers.length > 0 ? options.providers : (0, providers_1.getBuiltInProviders)();
-    const candidateUrls = (0, url_1.collectCandidateUrls)({
-        repositoryUrl: options.repositoryUrl,
-        originUrl: options.originUrl,
-        extraUrls: options.extraUrls,
-        env: options.env
-    }, logger);
-    if (options.requestedProvider) {
-        const match = (0, factory_1.createByName)(options.requestedProvider, { providers });
-        const baseUrl = match.provider.determineBaseUrl(candidateUrls);
-        const repoInfo = resolveRepoInfo(options.repositoryUrl || candidateUrls[0], match.provider);
-        return {
-            providerId: match.provider.id,
-            baseUrl,
-            owner: repoInfo.owner,
-            repo: repoInfo.repo,
-            confidence: scoreEvidence(match.evidence.type, match.provider.id),
-            evidence: [match.evidence]
-        };
-    }
-    let fallbackMatch;
-    const allEvidence = [];
-    for (const url of candidateUrls) {
-        const match = await (0, factory_1.createByUrl)(url, {
-            providers,
-            credentials: options.credentials,
-            timeoutMs: options.timeoutMs,
-            allowInsecure: options.allowInsecure,
-            logger
-        });
-        if (!match) {
-            continue;
-        }
-        allEvidence.push(match.evidence);
-        if (match.provider.id !== 'generic') {
-            const baseUrl = match.provider.determineBaseUrl(candidateUrls);
-            const repoInfo = resolveRepoInfo(url, match.provider);
-            return {
-                providerId: match.provider.id,
-                baseUrl,
-                owner: repoInfo.owner,
-                repo: repoInfo.repo,
-                confidence: scoreEvidence(match.evidence.type, match.provider.id),
-                evidence: allEvidence
-            };
-        }
-        fallbackMatch = match;
-    }
-    if (fallbackMatch) {
-        const baseUrl = fallbackMatch.provider.determineBaseUrl(candidateUrls);
-        const repoInfo = resolveRepoInfo(candidateUrls[0], fallbackMatch.provider);
-        return {
-            providerId: fallbackMatch.provider.id,
-            baseUrl,
-            owner: repoInfo.owner,
-            repo: repoInfo.repo,
-            confidence: scoreEvidence(fallbackMatch.evidence.type, fallbackMatch.provider.id),
-            evidence: allEvidence
-        };
-    }
-    const generic = providers.find(provider => provider.id === 'generic');
-    if (!generic) {
-        throw new Error('No providers available for detection');
-    }
-    const baseUrl = generic.determineBaseUrl(candidateUrls);
-    const repoInfo = resolveRepoInfo(candidateUrls[0], generic);
-    return {
-        providerId: generic.id,
-        baseUrl,
-        owner: repoInfo.owner,
-        repo: repoInfo.repo,
-        confidence: scoreEvidence('fallback', generic.id),
-        evidence: [
-            {
-                type: 'fallback',
-                providerId: generic.id,
-                detail: 'No URL candidates or providers matched'
-            }
-        ]
-    };
-}
-//# sourceMappingURL=detector.js.map
-
-/***/ }),
-
-/***/ 4724:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createByName = createByName;
-exports.createByUrl = createByUrl;
-const logger_1 = __nccwpck_require__(2304);
-const providers_1 = __nccwpck_require__(1263);
-const url_1 = __nccwpck_require__(7421);
-function normalizeProviders(options) {
-    return options?.providers && options.providers.length > 0 ? options.providers : (0, providers_1.getBuiltInProviders)();
-}
-function createByName(name, options) {
-    const providers = normalizeProviders(options);
-    const provider = (0, providers_1.getProviderById)(name, providers);
-    if (!provider) {
-        throw new Error(`Unsupported provider: ${name}`);
-    }
-    return {
-        provider,
-        evidence: {
-            type: 'explicit',
-            providerId: provider.id,
-            detail: `Provider explicitly requested: ${name}`
-        }
-    };
-}
-async function createByUrl(urlInput, options) {
-    const providers = normalizeProviders(options);
-    const logger = (0, logger_1.getLogger)(options?.logger);
-    const url = (0, url_1.toUrl)(urlInput);
-    if (!url) {
-        logger.debug(`Could not parse URL: ${urlInput}`);
-        return undefined;
-    }
-    const probeContext = {
-        credentials: options?.credentials,
-        timeoutMs: options?.timeoutMs,
-        allowInsecure: options?.allowInsecure
-    };
-    for (const provider of providers) {
-        if (provider.id === 'generic') {
-            continue;
-        }
-        if (provider.isUrlMatch(url)) {
-            logger.debug(`Provider ${provider.id} matched by hostname for ${urlInput}`);
-            return {
-                provider,
-                evidence: {
-                    type: 'hostname',
-                    providerId: provider.id,
-                    url: urlInput,
-                    detail: `Hostname match for ${url.hostname}`
-                }
-            };
-        }
-    }
-    for (const provider of providers) {
-        if (provider.id === 'generic') {
-            continue;
-        }
-        const probe = await provider.probeApi(url, probeContext, logger);
-        if (probe.matched) {
-            logger.debug(`Provider ${provider.id} matched by API probe for ${urlInput}`);
-            return {
-                provider,
-                evidence: {
-                    type: 'probe',
-                    providerId: provider.id,
-                    url: urlInput,
-                    detail: probe.detail
-                }
-            };
-        }
-    }
-    if (options?.fallbackToGeneric === false) {
-        return undefined;
-    }
-    const generic = providers.find(provider => provider.id === 'generic');
-    if (generic) {
-        return {
-            provider: generic,
-            evidence: {
-                type: 'fallback',
-                providerId: generic.id,
-                url: urlInput,
-                detail: 'No provider matched; falling back to generic'
-            }
-        };
-    }
-    return undefined;
-}
-//# sourceMappingURL=factory.js.map
-
-/***/ }),
-
-/***/ 5610:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.NoopLogger = exports.ConsoleLogger = exports.getProviderById = exports.getBuiltInProviders = exports.toUrl = exports.parseOwnerRepo = exports.collectCandidateUrls = exports.createByUrl = exports.createByName = exports.detectPlatform = void 0;
-var detector_1 = __nccwpck_require__(3306);
-Object.defineProperty(exports, "detectPlatform", ({ enumerable: true, get: function () { return detector_1.detectPlatform; } }));
-var factory_1 = __nccwpck_require__(4724);
-Object.defineProperty(exports, "createByName", ({ enumerable: true, get: function () { return factory_1.createByName; } }));
-Object.defineProperty(exports, "createByUrl", ({ enumerable: true, get: function () { return factory_1.createByUrl; } }));
-var url_1 = __nccwpck_require__(7421);
-Object.defineProperty(exports, "collectCandidateUrls", ({ enumerable: true, get: function () { return url_1.collectCandidateUrls; } }));
-Object.defineProperty(exports, "parseOwnerRepo", ({ enumerable: true, get: function () { return url_1.parseOwnerRepo; } }));
-Object.defineProperty(exports, "toUrl", ({ enumerable: true, get: function () { return url_1.toUrl; } }));
-var providers_1 = __nccwpck_require__(1263);
-Object.defineProperty(exports, "getBuiltInProviders", ({ enumerable: true, get: function () { return providers_1.getBuiltInProviders; } }));
-Object.defineProperty(exports, "getProviderById", ({ enumerable: true, get: function () { return providers_1.getProviderById; } }));
-var logger_1 = __nccwpck_require__(2304);
-Object.defineProperty(exports, "ConsoleLogger", ({ enumerable: true, get: function () { return logger_1.ConsoleLogger; } }));
-Object.defineProperty(exports, "NoopLogger", ({ enumerable: true, get: function () { return logger_1.NoopLogger; } }));
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
-/***/ 2304:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ConsoleLogger = exports.NoopLogger = void 0;
-exports.getLogger = getLogger;
-class NoopLogger {
-    info() { }
-    warn() { }
-    debug() { }
-}
-exports.NoopLogger = NoopLogger;
-class ConsoleLogger {
-    info(message) {
-        console.info(message);
-    }
-    warn(message) {
-        console.warn(message);
-    }
-    debug(message) {
-        console.debug(message);
-    }
-}
-exports.ConsoleLogger = ConsoleLogger;
-function getLogger(logger) {
-    return logger ?? new NoopLogger();
-}
-//# sourceMappingURL=logger.js.map
-
-/***/ }),
-
-/***/ 9046:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.bitbucketProvider = void 0;
-const http_1 = __nccwpck_require__(8411);
-const url_1 = __nccwpck_require__(7421);
-exports.bitbucketProvider = {
-    id: 'bitbucket',
-    displayName: 'Bitbucket',
-    isUrlMatch(url) {
-        return url.hostname === 'bitbucket.org' || url.hostname.endsWith('.bitbucket.org');
-    },
-    async probeApi(url, context) {
-        const origin = url.origin;
-        const headers = {
-            Accept: 'application/json',
-            'User-Agent': 'git-platform-detector',
-            ...(0, http_1.buildAuthHeaders)(context.credentials, 'bearer')
-        };
-        try {
-            const response = await (0, http_1.fetchWithTimeout)(`${origin}/rest/api/1.0/application-properties`, {
-                timeoutMs: context.timeoutMs,
-                headers
-            });
-            if (response.ok) {
-                return { matched: true, baseUrl: origin };
-            }
-            return { matched: false, detail: `Bitbucket probe status: ${response.status}` };
-        }
-        catch (error) {
-            return { matched: false, detail: `Bitbucket probe failed: ${String(error)}` };
-        }
-    },
-    determineBaseUrl(urls) {
-        for (const urlStr of urls) {
-            try {
-                const url = new URL(urlStr);
-                if (this.isUrlMatch(url)) {
-                    return url.origin;
-                }
-            }
-            catch {
-                continue;
-            }
-        }
-        for (const urlStr of urls) {
-            try {
-                return new URL(urlStr).origin;
-            }
-            catch {
-                continue;
-            }
-        }
-        return undefined;
-    },
-    parseRepoUrl(url) {
-        return (0, url_1.parseOwnerRepo)(url);
-    }
-};
-//# sourceMappingURL=bitbucket.js.map
-
-/***/ }),
-
-/***/ 3402:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.genericProvider = void 0;
-const url_1 = __nccwpck_require__(7421);
-exports.genericProvider = {
-    id: 'generic',
-    displayName: 'Generic Git',
-    isUrlMatch() {
-        return false;
-    },
-    async probeApi() {
-        return { matched: false };
-    },
-    determineBaseUrl(urls) {
-        for (const urlStr of urls) {
-            try {
-                return new URL(urlStr).origin;
-            }
-            catch {
-                continue;
-            }
-        }
-        return undefined;
-    },
-    parseRepoUrl(url) {
-        return (0, url_1.parseOwnerRepo)(url);
-    }
-};
-//# sourceMappingURL=generic.js.map
-
-/***/ }),
-
-/***/ 5849:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.giteaProvider = void 0;
-const http_1 = __nccwpck_require__(8411);
-const url_1 = __nccwpck_require__(7421);
-exports.giteaProvider = {
-    id: 'gitea',
-    displayName: 'Gitea',
-    isUrlMatch(url) {
-        return url.hostname.endsWith('.gitea.io') || url.hostname.includes('gitea');
-    },
-    async probeApi(url, context) {
-        const apiBase = `${url.origin}/api/v1`;
-        const headers = {
-            Accept: 'application/json',
-            'User-Agent': 'git-platform-detector',
-            ...(0, http_1.buildAuthHeaders)(context.credentials, 'token')
-        };
-        try {
-            const response = await (0, http_1.fetchWithTimeout)(`${apiBase}/version`, {
-                timeoutMs: context.timeoutMs,
-                headers
-            });
-            if (response.ok) {
-                return { matched: true, baseUrl: url.origin };
-            }
-            return { matched: false, detail: `Gitea probe status: ${response.status}` };
-        }
-        catch (error) {
-            return { matched: false, detail: `Gitea probe failed: ${String(error)}` };
-        }
-    },
-    determineBaseUrl(urls) {
-        for (const urlStr of urls) {
-            try {
-                const url = new URL(urlStr);
-                if (this.isUrlMatch(url)) {
-                    return url.origin;
-                }
-            }
-            catch {
-                continue;
-            }
-        }
-        for (const urlStr of urls) {
-            try {
-                return new URL(urlStr).origin;
-            }
-            catch {
-                continue;
-            }
-        }
-        return undefined;
-    },
-    parseRepoUrl(url) {
-        return (0, url_1.parseOwnerRepo)(url);
-    }
-};
-//# sourceMappingURL=gitea.js.map
-
-/***/ }),
-
-/***/ 9320:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.githubProvider = void 0;
-const http_1 = __nccwpck_require__(8411);
-const url_1 = __nccwpck_require__(7421);
-function getApiBase(url) {
-    if (url.hostname === 'api.github.com') {
-        return 'https://api.github.com';
-    }
-    if (url.hostname === 'github.com' || url.hostname.endsWith('.github.com')) {
-        return 'https://api.github.com';
-    }
-    return `${url.origin}/api/v3`;
-}
-exports.githubProvider = {
-    id: 'github',
-    displayName: 'GitHub',
-    isUrlMatch(url) {
-        return url.hostname === 'github.com' || url.hostname === 'api.github.com' || url.hostname.endsWith('.github.com');
-    },
-    async probeApi(url, context) {
-        const apiBase = getApiBase(url);
-        const headers = {
-            Accept: 'application/vnd.github+json',
-            'User-Agent': 'git-platform-detector',
-            ...(0, http_1.buildAuthHeaders)(context.credentials, 'token')
-        };
-        try {
-            const response = await (0, http_1.fetchWithTimeout)(`${apiBase}/rate_limit`, {
-                timeoutMs: context.timeoutMs,
-                headers
-            });
-            if (response.ok) {
-                return { matched: true, baseUrl: url.origin };
-            }
-            return { matched: false, detail: `GitHub probe status: ${response.status}` };
-        }
-        catch (error) {
-            return { matched: false, detail: `GitHub probe failed: ${String(error)}` };
-        }
-    },
-    determineBaseUrl(urls) {
-        for (const urlStr of urls) {
-            try {
-                const url = new URL(urlStr);
-                if (this.isUrlMatch(url)) {
-                    return url.hostname === 'api.github.com' ? 'https://github.com' : url.origin;
-                }
-            }
-            catch {
-                continue;
-            }
-        }
-        for (const urlStr of urls) {
-            try {
-                return new URL(urlStr).origin;
-            }
-            catch {
-                continue;
-            }
-        }
-        return undefined;
-    },
-    parseRepoUrl(url) {
-        return (0, url_1.parseOwnerRepo)(url);
-    }
-};
-//# sourceMappingURL=github.js.map
-
-/***/ }),
-
-/***/ 8411:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.fetchWithTimeout = fetchWithTimeout;
-exports.buildBasicAuthHeader = buildBasicAuthHeader;
-exports.buildTokenHeader = buildTokenHeader;
-exports.buildAuthHeaders = buildAuthHeaders;
-async function fetchWithTimeout(url, options) {
-    const controller = new AbortController();
-    const timeout = options.timeoutMs ?? 5000;
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-        return await fetch(url, {
-            method: 'GET',
-            headers: options.headers,
-            signal: controller.signal
-        });
-    }
-    finally {
-        clearTimeout(id);
-    }
-}
-function buildBasicAuthHeader(username, password) {
-    const token = Buffer.from(`${username}:${password}`).toString('base64');
-    return `Basic ${token}`;
-}
-function buildTokenHeader(token, scheme = 'bearer') {
-    return scheme === 'token' ? `token ${token}` : `Bearer ${token}`;
-}
-function buildAuthHeaders(credentials, scheme = 'bearer') {
-    if (!credentials)
-        return {};
-    if (credentials.username && credentials.password) {
-        return { Authorization: buildBasicAuthHeader(credentials.username, credentials.password) };
-    }
-    if (credentials.token) {
-        return { Authorization: buildTokenHeader(credentials.token, scheme) };
-    }
-    return {};
-}
-//# sourceMappingURL=http.js.map
-
-/***/ }),
-
-/***/ 1263:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getBuiltInProviders = getBuiltInProviders;
-exports.getProviderById = getProviderById;
-const bitbucket_1 = __nccwpck_require__(9046);
-const generic_1 = __nccwpck_require__(3402);
-const github_1 = __nccwpck_require__(9320);
-const gitea_1 = __nccwpck_require__(5849);
-const builtInProviders = [
-    gitea_1.giteaProvider,
-    github_1.githubProvider,
-    bitbucket_1.bitbucketProvider,
-    generic_1.genericProvider
-];
-function getBuiltInProviders() {
-    return [...builtInProviders];
-}
-function getProviderById(id, providers = builtInProviders) {
-    return providers.find(provider => provider.id === id);
-}
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
-/***/ 7421:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.toUrl = toUrl;
-exports.parseOwnerRepo = parseOwnerRepo;
-exports.collectCandidateUrls = collectCandidateUrls;
-function normalizeUrlString(input) {
-    return input.trim();
-}
-function toUrl(input) {
-    const trimmed = normalizeUrlString(input);
-    if (!trimmed)
-        return undefined;
-    if (trimmed.includes('://')) {
-        try {
-            return new URL(trimmed);
-        }
-        catch {
-            return undefined;
-        }
-    }
-    if (trimmed.startsWith('git@')) {
-        const withoutPrefix = trimmed.replace(/^git@/, '');
-        const [hostPart, pathPart] = withoutPrefix.split(':');
-        if (!hostPart || !pathPart)
-            return undefined;
-        const path = pathPart.replace(/\.git$/, '');
-        return new URL(`https://${hostPart}/${path}`);
-    }
-    return undefined;
-}
-function parseOwnerRepo(url) {
-    const parts = url.pathname.replace(/^\/+/, '').replace(/\.git$/, '').split('/');
-    if (parts.length >= 2) {
-        return { owner: parts[0], repo: parts[1] };
-    }
-    return {};
-}
-function collectCandidateUrls(options, logger) {
-    const urls = [];
-    const pushUnique = (value) => {
-        if (!value)
-            return;
-        const normalized = normalizeUrlString(value);
-        if (!normalized)
-            return;
-        if (!urls.includes(normalized)) {
-            urls.push(normalized);
-            logger?.debug(`Added candidate URL: ${normalized}`);
-        }
-    };
-    pushUnique(options.repositoryUrl);
-    pushUnique(options.originUrl);
-    const env = options.env || process.env;
-    const envUrls = [
-        env.GITHUB_SERVER_URL,
-        env.GITHUB_API_URL,
-        env.GITEA_SERVER_URL,
-        env.GITEA_API_URL,
-        env.BITBUCKET_SERVER_URL,
-        env.BITBUCKET_API_URL
-    ];
-    for (const envUrl of envUrls) {
-        pushUnique(envUrl);
-    }
-    for (const extraUrl of options.extraUrls || []) {
-        pushUnique(extraUrl);
-    }
-    return urls;
-}
-//# sourceMappingURL=url.js.map
-
-/***/ }),
-
 /***/ 2973:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -28161,7 +28233,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createPlatformAPI = createPlatformAPI;
 const exec = __importStar(__nccwpck_require__(5236));
-const git_platform_detector_1 = __nccwpck_require__(5610);
+const git_platform_detector_1 = __nccwpck_require__(1530);
 const github_1 = __nccwpck_require__(6473);
 const gitea_1 = __nccwpck_require__(4862);
 const bitbucket_1 = __nccwpck_require__(1737);
