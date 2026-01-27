@@ -87,13 +87,19 @@ async function resolvePlatform(
   token?: string
 ): Promise<RepoType> {
   if (repoType !== 'auto') {
-    createByName(repoType, { providers: getBuiltInProviders() });
-    return repoType;
+    // Map 'git' to 'generic' for git-platform-detector (they're equivalent)
+    const detectorType = repoType === 'git' ? 'generic' : repoType;
+    createByName(detectorType, { providers: getBuiltInProviders() });
+    // Return 'generic' for 'git' to maintain consistency
+    return repoType === 'git' ? 'generic' : repoType;
   }
 
   if (repoInfo.platform !== 'auto') {
-    createByName(repoInfo.platform, { providers: getBuiltInProviders() });
-    return repoInfo.platform;
+    // Map 'git' to 'generic' for git-platform-detector (they're equivalent)
+    const detectorType = repoInfo.platform === 'git' ? 'generic' : repoInfo.platform;
+    createByName(detectorType, { providers: getBuiltInProviders() });
+    // Return 'generic' for 'git' to maintain consistency
+    return repoInfo.platform === 'git' ? 'generic' : repoInfo.platform;
   }
 
   // Collect candidate URLs
