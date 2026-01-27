@@ -1,6 +1,6 @@
 {
   "name": "tag-create-update-action",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "GitHub Action to create or update Git tags on local or remote repositories",
   "main": "dist/index.js",
   "scripts": {
