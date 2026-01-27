@@ -84,10 +84,12 @@ jobs:
           repo=""
           token=""
           base_url=""
+          push_tag="true"
           case "${{ matrix.platform }}" in
             github)
               repo="${TEST_GITHUB_REPOSITORY}"
               token="${TEST_GITHUB_TOKEN}"
+              push_tag="true"
               if [ -z "$repo" ] || [ -z "$token" ]; then
                 echo "⚠️ Skipping GitHub E2E: repo or token missing"
                 run="false"
@@ -97,6 +99,7 @@ jobs:
               repo="${TEST_GITEA_REPOSITORY}"
               token="${TEST_GITEA_TOKEN}"
               base_url="${TEST_GITEA_BASE_URL}"
+              push_tag="true"
               if [ -z "$repo" ] || [ -z "$token" ]; then
                 echo "⚠️ Skipping Gitea E2E: repo or token missing"
                 run="false"
@@ -106,12 +109,14 @@ jobs:
               repo="${TEST_BITBUCKET_REPOSITORY}"
               token="${TEST_BITBUCKET_TOKEN}"
               base_url="${TEST_BITBUCKET_BASE_URL}"
+              push_tag="true"
               if [ -z "$repo" ] || [ -z "$token" ]; then
                 echo "⚠️ Skipping Bitbucket E2E: repo or token missing"
                 run="false"
               fi
               ;;
             generic|git)
+              push_tag="false"
               run="true"
               ;;
           esac
@@ -119,6 +124,7 @@ jobs:
           echo "repo=$repo" >> "$GITHUB_OUTPUT"
           echo "token=$token" >> "$GITHUB_OUTPUT"
           echo "base_url=$base_url" >> "$GITHUB_OUTPUT"
+          echo "push_tag=$push_tag" >> "$GITHUB_OUTPUT"
 
       - name: Configure Git user (for git/generic platform)
         if: steps.resolve.outputs.run == 'true' && (matrix.platform == 'git' || matrix.platform == 'generic')
@@ -140,5 +146,5 @@ jobs:
           repo_type: ${{ matrix.platform }}
           force: true
           update_existing: false
-          push_tag: ${{ matrix.platform == 'git' || matrix.platform == 'generic' ? 'false' : 'true' }}
+          push_tag: ${{ steps.resolve.outputs.push_tag }}
           verbose: true
