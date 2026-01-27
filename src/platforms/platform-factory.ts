@@ -87,18 +87,16 @@ async function resolvePlatform(
   token?: string
 ): Promise<RepoType> {
   if (repoType !== 'auto') {
-    // Map 'git' to 'generic' for git-platform-detector (they're equivalent)
-    const detectorType = repoType === 'git' ? 'generic' : repoType;
-    createByName(detectorType, { providers: getBuiltInProviders() });
-    // Return 'generic' for 'git' to maintain consistency
+    // git-platform-detector now supports 'git' and 'local' as aliases for 'generic'
+    createByName(repoType, { providers: getBuiltInProviders() });
+    // Return 'generic' for 'git' to maintain consistency with internal provider types
     return repoType === 'git' ? 'generic' : repoType;
   }
 
   if (repoInfo.platform !== 'auto') {
-    // Map 'git' to 'generic' for git-platform-detector (they're equivalent)
-    const detectorType = repoInfo.platform === 'git' ? 'generic' : repoInfo.platform;
-    createByName(detectorType, { providers: getBuiltInProviders() });
-    // Return 'generic' for 'git' to maintain consistency
+    // git-platform-detector now supports 'git' and 'local' as aliases for 'generic'
+    createByName(repoInfo.platform, { providers: getBuiltInProviders() });
+    // Return 'generic' for 'git' to maintain consistency with internal provider types
     return repoInfo.platform === 'git' ? 'generic' : repoInfo.platform;
   }
 
