@@ -22,3 +22,4 @@ export declare class Logger {
      */
     debug(message: string): void;
 }
+//# sourceMappingURL=logger.d.ts.map
