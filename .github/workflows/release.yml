@@ -36,6 +36,8 @@ jobs:
   release:
     needs: [ci, e2e-tests]  # REQUIRED: CI and E2E tests must pass before release
     runs-on: ubuntu-latest
+    env:
+      NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -55,11 +57,6 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Configure npm auth for package registry
-        run: echo "//git.ravenwolf.org/api/packages/liquidlogiclabs/npm/:_authToken=${NPM_REGISTRY_TOKEN}" >> .npmrc
-        env:
-          NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
 
       - name: Install dependencies
         run: npm ci
