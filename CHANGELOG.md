@@ -1,11 +1,13 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### [1.0.16](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v1.0.15...v1.0.16) (2026-01-28)
 
-## [Unreleased]
+
+### Bug Fixes
+
+* treat repo_type git as generic ([38756b3](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/38756b3b38f396c96b11a03353e9c0165a82cc89))
 
 ## [1.0.0] - 2025-01-XX
 
@@ -22,4 +24,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SSL certificate error handling option for self-hosted instances
 - Verbose/debug logging mode
 - Comprehensive input validation and error handling
-
