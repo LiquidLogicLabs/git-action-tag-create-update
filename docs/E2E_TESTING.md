@@ -70,7 +70,7 @@ E2E tests can be run locally, but require valid credentials:
 
 ```bash
 # Set environment variables
-export TEST_GITHUB_REPOSITORY="your-org/test-repo"
+export TEST_GITHUB_REPOSITORY="owner/repo"
 export TEST_GITHUB_TOKEN="ghp_your_token_here"
 export TEST_TAG_PREFIX="local-test-"
 

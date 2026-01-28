@@ -2,15 +2,21 @@ name: CI
 
 on:
   push:
+    paths-ignore: ['**/*.md']
     branches: ['**']
     tags-ignore: ['**']  # Ignore tag pushes (handled by release workflow)
   pull_request:
+    paths-ignore: ['**/*.md']
     branches: ['**']
   workflow_call:  # Allow CI to be called by release workflow
   workflow_dispatch:  # Allow manual triggering
 
 # Note: When called by release workflow, CI will run on the tag ref
 # When triggered directly, CI should NOT run on tag pushes (release handles those)
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -57,5 +63,6 @@ jobs:
     # test.yml will handle the condition checking internally
     needs: lint  # Tests run after lint
     uses: ./.github/workflows/test.yml
+    secrets: inherit
     # test.yml runs: unit tests + integration tests (all tests except E2E)
 

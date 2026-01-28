@@ -13,17 +13,33 @@
     "test:e2e": "jest --testPathPattern=e2e --testTimeout=60000",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:act": "act workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json",
-    "test:act:verbose": "act workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json -v",
-    "test:act:ci": "act -W .github/workflows/ci.yml --env-file .act.env --secret-file .act.secrets",
-    "test:act:e2e": "act workflow_dispatch -W .github/workflows/e2e-tests.yml --eventpath .github/workflows/.act/event-workflow_call.json --env-file .act.env --secret-file .act.secrets",
-    "test:act:release": "act push --eventpath .github/workflows/.act/event-release.json --env-file .act.env --secret-file .act.secrets",
-    "lint:act": "act -W .github/workflows/ci.yml -j lint --env-file .act.env --secret-file .act.secrets",
+    "test:act": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json",
+    "test:act:verbose": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json -v",
+    "test:act:ci": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/ci.yml",
+    "test:act:e2e": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets workflow_dispatch -W .github/workflows/e2e-tests.yml --eventpath .github/workflows/.act/event-workflow_call.json",
+    "test:act:release": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets push --eventpath .github/workflows/.act/event-release.json",
+    "test:act:with-gitea-token": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars -s \"NPM_REGISTRY_TOKEN=${GITEA_TOKEN}\" -s \"GITEA_TOKEN=${GITEA_TOKEN}\" workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json",
+    "test:act:verbose:with-gitea-token": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars -s \"NPM_REGISTRY_TOKEN=${GITEA_TOKEN}\" -s \"GITEA_TOKEN=${GITEA_TOKEN}\" workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json -v",
+    "test:act:ci:with-gitea-token": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars -s \"NPM_REGISTRY_TOKEN=${GITEA_TOKEN}\" -s \"GITEA_TOKEN=${GITEA_TOKEN}\" -W .github/workflows/ci.yml",
+    "test:act:e2e:with-gitea-token": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars -s \"NPM_REGISTRY_TOKEN=${GITEA_TOKEN}\" -s \"GITEA_TOKEN=${GITEA_TOKEN}\" workflow_dispatch -W .github/workflows/e2e-tests.yml --eventpath .github/workflows/.act/event-workflow_call.json",
+    "lint:act": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/ci.yml -j lint",
     "lint": "eslint src/**/*.ts --no-warn-ignored",
     "format": "prettier --write \"src/**/*.ts\"",
     "release:patch": "standard-version --release-as patch --skip.changelog && git push --follow-tags",
     "release:minor": "standard-version --release-as minor --skip.changelog && git push --follow-tags",
-    "release:major": "standard-version --release-as major --skip.changelog && git push --follow-tags"
+    "release:major": "standard-version --release-as major --skip.changelog && git push --follow-tags",
+    "version:dry-run": "standard-version --dry-run",
+    "version:patch": "standard-version --release-as patch",
+    "version:minor": "standard-version --release-as minor",
+    "version:major": "standard-version --release-as major",
+    "release:push": "git push --follow-tags origin HEAD",
+    "test:act:ci:push": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/ci.yml --eventpath .github/workflows/.act/event-push.json",
+    "test:act:ci:dispatch": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/ci.yml --eventpath .github/workflows/.act/event-workflow_dispatch.json",
+    "test:act:ci:with-secrets": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/ci.yml",
+    "test:act:e2e:dispatch": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/e2e-tests.yml --eventpath .github/workflows/.act/event-workflow_dispatch.json",
+    "test:act:e2e:with-secrets": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/e2e-tests.yml",
+    "test:act:release:tag": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/release.yml --eventpath .github/workflows/.act/event-release.json",
+    "test:act:release:dispatch": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/release.yml --eventpath .github/workflows/.act/event-workflow_dispatch.json"
   },
   "keywords": [
     "github-actions",
@@ -63,5 +79,8 @@
     "standard-version": "^9.5.0",
     "ts-jest": "^29.1.1",
     "typescript": "^5.9.3"
+  },
+  "standard-version": {
+    "tagPrefix": "v"
   }
 }
