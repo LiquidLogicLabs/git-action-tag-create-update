@@ -64,6 +64,11 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Configure npm auth for package registry
+        run: echo "//git.ravenwolf.org/api/packages/liquidlogiclabs/npm/:_authToken=${NPM_REGISTRY_TOKEN}" >> .npmrc
+        env:
+          NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
+
       - name: Install dependencies
         run: npm ci
 

@@ -21,20 +21,10 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Configure npm authentication for custom registry
-        if: env.NPM_REGISTRY_URL != '' && env.NPM_REGISTRY_TOKEN != ''
-        run: |
-          # Replace ${NPM_REGISTRY_URL} and ${NPM_REGISTRY_TOKEN} placeholders in .npmrc
-          # This ensures both act (local) and CI (Gitea runner) work identically
-          REGISTRY_URL="${{ vars.NPM_REGISTRY_URL || env.NPM_REGISTRY_URL }}"
-          REGISTRY_HOST=$(echo "$REGISTRY_URL" | sed -e 's#^https\?://##' -e 's#/*$##')
-          sed -i "s|\${NPM_REGISTRY_URL}|${REGISTRY_HOST}|g" .npmrc || true
-          sed -i "s|\${NPM_REGISTRY_TOKEN}|${{ secrets.NPM_REGISTRY_TOKEN || env.NPM_REGISTRY_TOKEN }}|g" .npmrc || true
-          # Also add to ~/.npmrc as fallback (overrides project .npmrc)
-          echo "//${REGISTRY_HOST}/:_authToken=${{ secrets.NPM_REGISTRY_TOKEN || env.NPM_REGISTRY_TOKEN }}" >> ~/.npmrc
+      - name: Configure npm auth for package registry
+        run: echo "//git.ravenwolf.org/api/packages/liquidlogiclabs/npm/:_authToken=${NPM_REGISTRY_TOKEN}" >> .npmrc
         env:
-          NPM_REGISTRY_URL: ${{ vars.NPM_REGISTRY_URL || env.NPM_REGISTRY_URL }}
-          NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN || env.NPM_REGISTRY_TOKEN }}
+          NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
 
       - name: Install dependencies
         run: npm ci

@@ -162,6 +162,10 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
     verbose: true
 ```
 
+## Workflow permissions
+
+When pushing tags to the remote (`push_tag: true`, default), the job must have `contents: write`. For local-only use or `push_tag: false`, `contents: read` is sufficient.
+
 ## Inputs
 
 | Input | Description | Required | Default |
