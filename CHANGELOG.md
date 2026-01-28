@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.0.18](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v1.0.17...v1.0.18) (2026-01-28)
+
+
+### Bug Fixes
+
+* prevent CI cancellation on tag releases ([ba46a54](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/ba46a5441078df36e84e0601d9dfe6dd32e11eb6))
+
 ### [1.0.17](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v1.0.16...v1.0.17) (2026-01-28)
 
 
