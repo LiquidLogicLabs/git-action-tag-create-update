@@ -37,4 +37,3 @@ export declare function deleteTagLocally(tagName: string, logger: Logger): Promi
  * Delete a tag from remote
  */
 export declare function deleteTagRemote(tagName: string, remote: string, token: string | undefined, logger: Logger): Promise<void>;
-//# sourceMappingURL=git.d.ts.map

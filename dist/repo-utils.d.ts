@@ -12,4 +12,3 @@ export declare function getLocalRepositoryInfo(logger: Logger): Promise<Reposito
  * Get full repository information
  */
 export declare function getRepositoryInfo(repository: string | undefined, repoType: RepoType, logger: Logger): Promise<RepositoryInfo>;
-//# sourceMappingURL=repo-utils.d.ts.map
