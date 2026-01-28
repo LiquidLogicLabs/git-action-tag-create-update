@@ -87,17 +87,19 @@ async function resolvePlatform(
   token?: string
 ): Promise<RepoType> {
   if (repoType !== 'auto') {
-    // git-platform-detector now supports 'git' and 'local' as aliases for 'generic'
-    createByName(repoType, { providers: getBuiltInProviders() });
-    // Return 'generic' for 'git' to maintain consistency with internal provider types
-    return repoType === 'git' ? 'generic' : repoType;
+    // Treat 'git' as an alias for 'generic' for platform detection.
+    // Note: git-platform-detector built-ins do not include a 'git' provider ID.
+    const requested = repoType === 'git' ? 'generic' : repoType;
+    createByName(requested, { providers: getBuiltInProviders() });
+    return requested;
   }
 
   if (repoInfo.platform !== 'auto') {
-    // git-platform-detector now supports 'git' and 'local' as aliases for 'generic'
-    createByName(repoInfo.platform, { providers: getBuiltInProviders() });
-    // Return 'generic' for 'git' to maintain consistency with internal provider types
-    return repoInfo.platform === 'git' ? 'generic' : repoInfo.platform;
+    // Treat 'git' as an alias for 'generic' for platform detection.
+    // Note: git-platform-detector built-ins do not include a 'git' provider ID.
+    const requested = repoInfo.platform === 'git' ? 'generic' : repoInfo.platform;
+    createByName(requested, { providers: getBuiltInProviders() });
+    return requested;
   }
 
   // Collect candidate URLs
