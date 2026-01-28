@@ -8,4 +8,3 @@ export declare function getInputs(): ActionInputs;
  * Falls back to platform-specific token environment variables if token is not provided
  */
 export declare function resolveToken(token: string | undefined, platform: RepoType): string | undefined;
-//# sourceMappingURL=config.d.ts.map

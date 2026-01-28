@@ -1,1 +1,1 @@
-{"version":3,"file":"config.test.d.ts","sourceRoot":"","sources":["file:///home/ravenwolf.org/sanderson/source/git/LiquidLogicLabs/actions/git-create-update-tag-action/src/__tests__/config.test.ts"],"names":[],"mappings":""}
+{"version":3,"file":"config.test.d.ts","sourceRoot":"","sources":["../../../git-create-update-tag-action/src/__tests__/config.test.ts"],"names":[],"mappings":""}
