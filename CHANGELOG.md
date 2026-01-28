@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.0.17](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v1.0.16...v1.0.17) (2026-01-28)
+
+
+### Bug Fixes
+
+* make packaging deterministic ([bc1fba6](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/bc1fba6cd6af5731d3917f2d4feb026990034f83))
+
 ### [1.0.16](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v1.0.15...v1.0.16) (2026-01-28)
 
 
