@@ -27691,14 +27691,24 @@ class GiteaAPI {
             message: message || `Tag ${tagName}`
         };
         const tryCreateViaRefs = async () => {
-            // Fallback: create a lightweight tag ref (works on older / stricter Gitea)
+            // Fallback: create a lightweight tag ref (not supported on all Gitea versions)
             const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`;
             const payload = {
                 ref: `refs/tags/${tagName}`,
                 sha
             };
             this.logger.warning(`Primary Gitea tag create failed; falling back to refs API for ${tagName}`);
-            await this.client.post(refPath, payload);
+            try {
+                await this.client.post(refPath, payload);
+            }
+            catch (refsError) {
+                const refsMsg = refsError instanceof Error ? refsError.message : String(refsError);
+                if (refsMsg.includes('405')) {
+                    throw new Error(`Gitea tag create failed: POST /repos/.../tags returned an error, and the refs fallback (POST /git/refs) is not supported by this Gitea server (405 Method Not Allowed). ` +
+                        'Ensure the token has write access to the repository and that the primary tags API is available.');
+                }
+                throw refsError;
+            }
         };
         try {
             await this.client.post(createTagPath, tagData);
@@ -27738,9 +27748,14 @@ class GiteaAPI {
                     };
                 }
             }
+            else if (msg.includes('404')) {
+                // 404 on create usually means missing auth or no access (Gitea often returns 404 for forbidden)
+                throw new Error(`Gitea tag create failed: POST /repos/.../tags returned 404 Not Found. ` +
+                    'This usually means the token is missing or has no write access. Pass the token input (e.g. GITEA_TOKEN or GITHUB_TOKEN from secrets) and ensure the token has repository write permission.');
+            }
             else {
-                // Fallback to refs API on method/endpoint errors (405/404)
-                if (msg.includes('405') || msg.includes('404')) {
+                // Fallback to refs API only on 405 (wrong method); do not use refs for 404 (auth issue)
+                if (msg.includes('405')) {
                     await tryCreateViaRefs();
                 }
                 else {
