@@ -44,7 +44,7 @@ inputs:
     required: false
     default: 'false'
   verbose:
-    description: 'Enable verbose/debug logging (default: false)'
+    description: 'Enable verbose/debug logging (default: false). Also enabled when ACTIONS_STEP_DEBUG=true.'
     required: false
     default: 'false'
   push_tag:
