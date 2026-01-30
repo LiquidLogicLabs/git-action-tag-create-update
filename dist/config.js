@@ -88,7 +88,10 @@ function getInputs() {
     const repoType = parseRepoType(repoTypeStr);
     const baseUrl = getOptionalInput('base_url');
     const ignoreCertErrors = getBooleanInput('ignore_cert_errors', false);
-    const verbose = getBooleanInput('verbose', false);
+    const verboseInput = getBooleanInput('verbose', false);
+    const envStepDebug = (process.env.ACTIONS_STEP_DEBUG || '').toLowerCase();
+    const stepDebugEnabled = (typeof core.isDebug === 'function' && core.isDebug()) || envStepDebug === 'true' || envStepDebug === '1';
+    const verbose = verboseInput || stepDebugEnabled;
     const pushTag = getBooleanInput('push_tag', true);
     const gitUserName = getOptionalInput('git_user_name');
     const gitUserEmail = getOptionalInput('git_user_email');
