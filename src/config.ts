@@ -64,7 +64,7 @@ export function getInputs(): ActionInputs {
   const ignoreCertErrors = getBooleanInput('ignore_cert_errors', false);
   const verboseInput = getBooleanInput('verbose', false);
   const envStepDebug = (process.env.ACTIONS_STEP_DEBUG || '').toLowerCase();
-  const stepDebugEnabled = core.isDebug() || envStepDebug === 'true' || envStepDebug === '1';
+  const stepDebugEnabled = (typeof core.isDebug === 'function' && core.isDebug()) || envStepDebug === 'true' || envStepDebug === '1';
   const verbose = verboseInput || stepDebugEnabled;
   const pushTag = getBooleanInput('push_tag', true);
   const gitUserName = getOptionalInput('git_user_name');
