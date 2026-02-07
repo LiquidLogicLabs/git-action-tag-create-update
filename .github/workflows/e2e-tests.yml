@@ -63,7 +63,7 @@ jobs:
         id: prep
         run: |
           TAG_NAME="${{ matrix.tagPrefix || 'test-' }}${GITHUB_RUN_ID}-${{ matrix.platform }}-${GITHUB_RUN_ATTEMPT}"
-          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "tagName=$TAG_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Resolve platform inputs
         id: resolve
@@ -127,13 +127,13 @@ jobs:
         if: steps.resolve.outputs.run == 'true'
         uses: ./
         with:
-          tag_name: ${{ steps.prep.outputs.tag_name }}
-          tag_message: E2E ${{ matrix.platform }} tag ${{ steps.prep.outputs.tag_name }}
+          tagName: ${{ steps.prep.outputs.tagName }}
+          tagMessage: E2E ${{ matrix.platform }} tag ${{ steps.prep.outputs.tagName }}
           repository: ${{ steps.resolve.outputs.repo }}
           token: ${{ steps.resolve.outputs.token }}
-          base_url: ${{ steps.resolve.outputs.base_url }}
-          repo_type: ${{ matrix.platform }}
+          baseUrl: ${{ steps.resolve.outputs.base_url }}
+          repoType: ${{ matrix.platform }}
           force: true
-          update_existing: false
-          push_tag: ${{ steps.resolve.outputs.push_tag }}
+          updateExisting: false
+          pushTag: ${{ steps.resolve.outputs.push_tag }}
           verbose: true
