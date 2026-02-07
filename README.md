@@ -26,8 +26,8 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create tag
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    tag_message: 'Release version 1.0.0'
+    tagName: 'v1.0.0'
+    tagMessage: 'Release version 1.0.0'
 ```
 
 ### Annotated Tag
@@ -36,9 +36,9 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create annotated tag
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    tag_message: 'Release version 1.0.0'
-    tag_sha: ${{ github.sha }}
+    tagName: 'v1.0.0'
+    tagMessage: 'Release version 1.0.0'
+    tagSha: ${{ github.sha }}
 ```
 
 ### Lightweight Tag
@@ -47,8 +47,8 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create lightweight tag
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    # No tag_message = lightweight tag
+    tagName: 'v1.0.0'
+    # No tagMessage = lightweight tag
 ```
 
 ### Update Existing Tag
@@ -57,9 +57,9 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Update existing tag
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1'
-    tag_message: 'Updated major version tag'
-    update_existing: true
+    tagName: 'v1'
+    tagMessage: 'Updated major version tag'
+    updateExisting: true
 ```
 
 ### GPG Signed Tag
@@ -68,10 +68,10 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create GPG signed tag
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    tag_message: 'Release version 1.0.0'
-    gpg_sign: true
-    gpg_key_id: 'YOUR_GPG_KEY_ID'  # Optional
+    tagName: 'v1.0.0'
+    tagMessage: 'Release version 1.0.0'
+    gpgSign: true
+    gpgKeyId: 'YOUR_GPG_KEY_ID'  # Optional
 ```
 
 ### GitHub Example
@@ -80,11 +80,11 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create GitHub tag
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    tag_message: 'Release version 1.0.0'
+    tagName: 'v1.0.0'
+    tagMessage: 'Release version 1.0.0'
     repository: 'owner/repo'
     token: ${{ secrets.GITHUB_TOKEN }}
-    repo_type: 'github'
+    repoType: 'github'
 ```
 
 ### Gitea Self-Hosted Example
@@ -93,13 +93,13 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create Gitea tag
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    tag_message: 'Release version 1.0.0'
+    tagName: 'v1.0.0'
+    tagMessage: 'Release version 1.0.0'
     repository: 'https://gitea.example.com/owner/repo'
     token: ${{ secrets.GITEA_TOKEN }}
-    repo_type: 'gitea'
-    base_url: 'https://gitea.example.com/api/v1'
-    ignore_cert_errors: true  # For self-signed certificates
+    repoType: 'gitea'
+    baseUrl: 'https://gitea.example.com/api/v1'
+    skipCertificateCheck: true  # For self-signed certificates
 ```
 
 ### Bitbucket Example
@@ -108,11 +108,11 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create Bitbucket tag
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    tag_message: 'Release version 1.0.0'
+    tagName: 'v1.0.0'
+    tagMessage: 'Release version 1.0.0'
     repository: 'owner/repo'
     token: ${{ secrets.BITBUCKET_TOKEN }}
-    repo_type: 'bitbucket'
+    repoType: 'bitbucket'
 ```
 
 ### Remote Repository (Without Cloning)
@@ -121,10 +121,10 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create tag on remote repository
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    tag_message: 'Release version 1.0.0'
+    tagName: 'v1.0.0'
+    tagMessage: 'Release version 1.0.0'
     repository: 'owner/repo'
-    tag_sha: 'abc123def456...'  # Required when not in local repo
+    tagSha: 'abc123def456...'  # Required when not in local repo
     token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
@@ -134,9 +134,9 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create tag locally without pushing
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    tag_message: 'Release version 1.0.0'
-    push_tag: false
+    tagName: 'v1.0.0'
+    tagMessage: 'Release version 1.0.0'
+    pushTag: false
 ```
 
 ### Custom Git User Configuration
@@ -145,10 +145,10 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create tag with custom git user
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    tag_message: 'Release version 1.0.0'
-    git_user_name: 'My Name'
-    git_user_email: 'myemail@example.com'
+    tagName: 'v1.0.0'
+    tagMessage: 'Release version 1.0.0'
+    gitUserName: 'My Name'
+    gitUserEmail: 'myemail@example.com'
 ```
 
 ### Verbose Logging
@@ -157,46 +157,46 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 - name: Create tag with verbose logging
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
-    tag_message: 'Release version 1.0.0'
+    tagName: 'v1.0.0'
+    tagMessage: 'Release version 1.0.0'
     verbose: true
 ```
 
 ## Workflow permissions
 
-When pushing tags to the remote (`push_tag: true`, default), the job must have `contents: write`. For local-only use or `push_tag: false`, `contents: read` is sufficient.
+When pushing tags to the remote (`pushTag: true`, default), the job must have `contents: write`. For local-only use or `pushTag: false`, `contents: read` is sufficient.
 
 ## Inputs
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `tag_name` | Name of the tag to create/update | Yes | - |
-| `tag_message` | Message for annotated tags. If provided, creates an annotated tag; if omitted, creates a lightweight tag | No | - |
-| `tag_sha` | Commit SHA to tag (defaults to current HEAD when in local repo) | No | Current HEAD |
+| `tagName` | Name of the tag to create/update | Yes | - |
+| `tagMessage` | Message for annotated tags. If provided, creates an annotated tag; if omitted, creates a lightweight tag | No | - |
+| `tagSha` | Commit SHA to tag (defaults to current HEAD when in local repo) | No | Current HEAD |
 | `repository` | Repository URL or owner/repo format (defaults to current repo) | No | Current repo |
 | `token` | Authentication token (defaults to GITHUB_TOKEN) | No | `${{ secrets.GITHUB_TOKEN }}` |
-| `update_existing` | Whether to update existing tags (default: false) | No | `false` |
-| `gpg_sign` | Whether to GPG sign the tag (default: false) | No | `false` |
-| `gpg_key_id` | GPG key ID to use for signing | No | - |
-| `repo_type` | Repository type ('github', 'gitea', 'bitbucket', 'generic', 'git', 'auto'). Default: 'auto' (auto-detect from repository URL). 'git' and 'generic' are equivalent aliases for local Git CLI operations. | No | `auto` |
-| `base_url` | Base URL for self-hosted instances | No | Platform default |
-| `ignore_cert_errors` | Ignore SSL certificate errors (default: false) | No | `false` |
+| `updateExisting` | Whether to update existing tags (default: false) | No | `false` |
+| `gpgSign` | Whether to GPG sign the tag (default: false) | No | `false` |
+| `gpgKeyId` | GPG key ID to use for signing | No | - |
+| `repoType` | Repository type ('github', 'gitea', 'bitbucket', 'generic', 'git', 'auto'). Default: 'auto' (auto-detect from repository URL). 'git' and 'generic' are equivalent aliases for local Git CLI operations. | No | `auto` |
+| `baseUrl` | Base URL for self-hosted instances | No | Platform default |
+| `skipCertificateCheck` | Ignore SSL certificate errors (default: false) | No | `false` |
 | `force` | Force update even if tag exists (default: false) | No | `false` |
 | `verbose` | Enable verbose/debug logging (default: false) | No | `false` |
-| `push_tag` | Push the tag to the remote repository after creating/updating (default: true). Only applies when using local Git CLI. | No | `true` |
-| `git_user_name` | Git user name for annotated tags. Auto-detected from GITHUB_ACTOR/GITEA_ACTOR if not provided. Falls back to local git config. | No | Auto-detected |
-| `git_user_email` | Git user email for annotated tags. Auto-detected from GITHUB_ACTOR/GITEA_ACTOR if not provided. Falls back to local git config. | No | Auto-detected |
+| `pushTag` | Push the tag to the remote repository after creating/updating (default: true). Only applies when using local Git CLI. | No | `true` |
+| `gitUserName` | Git user name for annotated tags. Auto-detected from GITHUB_ACTOR/GITEA_ACTOR if not provided. Falls back to local git config. | No | Auto-detected |
+| `gitUserEmail` | Git user email for annotated tags. Auto-detected from GITHUB_ACTOR/GITEA_ACTOR if not provided. Falls back to local git config. | No | Auto-detected |
 
 ## Outputs
 
 | Output | Description |
 |-------|-------------|
-| `tag_name` | Name of the tag that was created/updated |
-| `tag_sha` | SHA of the commit that was tagged |
-| `tag_exists` | Whether the tag already existed (true/false) |
-| `tag_updated` | Whether an existing tag was updated (true/false) |
-| `tag_created` | Whether a new tag was created (true/false) |
-| `platform` | Detected or specified platform (same as repo_type input or detected value) |
+| `tagName` | Name of the tag that was created/updated |
+| `tagSha` | SHA of the commit that was tagged |
+| `tagExists` | Whether the tag already existed (true/false) |
+| `tagUpdated` | Whether an existing tag was updated (true/false) |
+| `tagCreated` | Whether a new tag was created (true/false) |
+| `platform` | Detected or specified platform (same as repoType input or detected value) |
 
 ## Platform Detection
 
@@ -207,7 +207,7 @@ The action automatically detects the platform from the repository URL:
 - `bitbucket.org` or `bitbucket.server.com` → Bitbucket
 - Unknown → Generic (uses Git CLI)
 
-You can also explicitly specify the platform using the `repo_type` input.
+You can also explicitly specify the platform using the `repoType` input.
 
 ## Local vs Remote Operations
 
@@ -218,8 +218,8 @@ The action intelligently chooses between local Git CLI operations and platform A
 
 ## Tag Types
 
-- **Annotated Tags**: Created when `tag_message` is provided. Include metadata and can be GPG signed.
-- **Lightweight Tags**: Created when `tag_message` is omitted. Simple pointer to a commit.
+- **Annotated Tags**: Created when `tagMessage` is provided. Include metadata and can be GPG signed.
+- **Lightweight Tags**: Created when `tagMessage` is omitted. Simple pointer to a commit.
 
 ## Git User Configuration
 
@@ -231,7 +231,7 @@ For annotated tags, Git requires `user.name` and `user.email` to be configured. 
     - **GitHub**: `actor@users.noreply.github.com` (or `actor@users.noreply.{hostname}` for GitHub Enterprise)
     - **Gitea**: `actor@noreply.{hostname}` (e.g., `actor@noreply.git.ravenwolf.org`)
     - **Other platforms**: `actor@noreply.{hostname}`
-- **Manual override**: You can provide `git_user_name` and `git_user_email` inputs to override auto-detection
+- **Manual override**: You can provide `gitUserName` and `gitUserEmail` inputs to override auto-detection
 - **Local config fallback**: If git user is already configured locally, it uses those values
 - **Default fallback**: If nothing is detected, uses "GitHub Actions" and "actions@github.com"
 
@@ -239,22 +239,22 @@ The git config is set locally (repository-scoped) only when needed, so it won't 
 
 ## GPG Signing
 
-GPG signing is only supported for annotated tags (when `tag_message` is provided). You can specify a specific GPG key ID using `gpg_key_id`, or let Git use the default signing key.
+GPG signing is only supported for annotated tags (when `tagMessage` is provided). You can specify a specific GPG key ID using `gpgKeyId`, or let Git use the default signing key.
 
 ## Self-Hosted Instances
 
-For self-hosted instances, provide the `base_url` input with the API base URL:
+For self-hosted instances, provide the `baseUrl` input with the API base URL:
 
 - **Gitea**: `https://your-gitea-instance.com/api/v1`
 - **GitHub Enterprise**: `https://your-github-enterprise.com/api/v3`
 - **Bitbucket Server**: `https://your-bitbucket-server.com/rest/api/1.0`
 
-If you're using self-signed certificates, set `ignore_cert_errors: true`.
+If you're using self-signed certificates, set `skipCertificateCheck: true`.
 
 ## Security Considerations
 
 - **Token Handling**: Tokens are automatically masked in logs using `core.setSecret()`
-- **Certificate Validation**: By default, SSL certificate errors are not ignored. Only set `ignore_cert_errors: true` if absolutely necessary for self-hosted instances with self-signed certificates
+- **Certificate Validation**: By default, SSL certificate errors are not ignored. Only set `skipCertificateCheck: true` if absolutely necessary for self-hosted instances with self-signed certificates
 - **Token Storage**: Store tokens in GitHub Secrets and reference them via `${{ secrets.SECRET_NAME }}`
 - **GPG Keys**: GPG keys should be properly configured in the runner environment
 
@@ -265,7 +265,7 @@ Enable verbose logging to troubleshoot issues:
 ```yaml
 - uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: 'v1.0.0'
+    tagName: 'v1.0.0'
     verbose: true
 ```
 
@@ -302,9 +302,9 @@ jobs:
       - name: Create release tag
         uses: LiquidLogicLabs/git-action-tag-create-update@v1
         with:
-          tag_name: v${{ steps.version.outputs.version }}
-          tag_message: Release version ${{ steps.version.outputs.version }}
-          update_existing: true
+          tagName: v${{ steps.version.outputs.version }}
+          tagMessage: Release version ${{ steps.version.outputs.version }}
+          updateExisting: true
 ```
 
 ### Major Version Tag
@@ -313,9 +313,9 @@ jobs:
 - name: Create/update major version tag
   uses: LiquidLogicLabs/git-action-tag-create-update@v1
   with:
-    tag_name: v1
-    tag_message: Major version 1
-    update_existing: true
+    tagName: v1
+    tagMessage: Major version 1
+    updateExisting: true
 ```
 
 ## Local Testing with Act
