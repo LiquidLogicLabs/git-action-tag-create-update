@@ -72,11 +72,11 @@ describe('Generic Git E2E Tests', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
-        case 'tag_name':
+        case 'tagName':
           return tagName;
-        case 'tag_message':
+        case 'tagMessage':
           return tagMessage;
-        case 'repo_type':
+        case 'repoType':
           return 'generic';
         default:
           return '';
@@ -95,9 +95,9 @@ describe('Generic Git E2E Tests', () => {
     expect(tagExists).toBe(true);
 
     // Verify outputs
-    expect(core.setOutput).toHaveBeenCalledWith('tag_name', tagName);
-    expect(core.setOutput).toHaveBeenCalledWith('tag_created', 'true');
-    expect(core.setOutput).toHaveBeenCalledWith('tag_exists', 'false');
+    expect(core.setOutput).toHaveBeenCalledWith('tagName', tagName);
+    expect(core.setOutput).toHaveBeenCalledWith('tagCreated', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tagExists', 'false');
     expect(core.setOutput).toHaveBeenCalledWith('platform', 'generic');
     expect(core.setFailed).not.toHaveBeenCalled();
   });
@@ -107,9 +107,9 @@ describe('Generic Git E2E Tests', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
-        case 'tag_name':
+        case 'tagName':
           return tagName;
-        case 'repo_type':
+        case 'repoType':
           return 'generic';
         default:
           return '';
@@ -133,7 +133,7 @@ describe('Generic Git E2E Tests', () => {
     }));
     expect(tagType).toBe(0); // Command succeeds
 
-    expect(core.setOutput).toHaveBeenCalledWith('tag_created', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tagCreated', 'true');
   });
 
   it('should update existing tag when force is true', async () => {
@@ -149,11 +149,11 @@ describe('Generic Git E2E Tests', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
-        case 'tag_name':
+        case 'tagName':
           return tagName;
-        case 'tag_message':
+        case 'tagMessage':
           return 'Updated tag message';
-        case 'repo_type':
+        case 'repoType':
           return 'generic';
         case 'force':
           return 'true';
@@ -167,8 +167,8 @@ describe('Generic Git E2E Tests', () => {
 
     await run();
 
-    expect(core.setOutput).toHaveBeenCalledWith('tag_updated', 'true');
-    expect(core.setOutput).toHaveBeenCalledWith('tag_exists', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tagUpdated', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tagExists', 'true');
   });
 
   it('should not push tag when push_tag is false', async () => {
@@ -181,11 +181,11 @@ describe('Generic Git E2E Tests', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
-        case 'tag_name':
+        case 'tagName':
           return tagName;
-        case 'repo_type':
+        case 'repoType':
           return 'generic';
-        case 'push_tag':
+        case 'pushTag':
           return 'false';
         default:
           return '';
@@ -204,6 +204,6 @@ describe('Generic Git E2E Tests', () => {
     })) === 0;
 
     expect(tagExists).toBe(true);
-    expect(core.setOutput).toHaveBeenCalledWith('tag_created', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tagCreated', 'true');
   });
 });

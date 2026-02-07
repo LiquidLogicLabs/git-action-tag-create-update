@@ -20,29 +20,29 @@ export async function run(): Promise<void> {
     // Log all inputs when verbose is enabled
     if (inputs.verbose) {
       logger.debug('=== INPUTS ===');
-      logger.debug(`tag_name: ${inputs.tagName}`);
-      logger.debug(`tag_sha: ${inputs.tagSha || 'undefined (will use HEAD)'}`);
+      logger.debug(`tagName: ${inputs.tagName}`);
+      logger.debug(`tagSha: ${inputs.tagSha || 'undefined (will use HEAD)'}`);
       if (inputs.tagMessage === undefined) {
-        logger.debug(`tag_message: undefined (will create lightweight tag)`);
+        logger.debug(`tagMessage: undefined (will create lightweight tag)`);
       } else {
         const msgLength = inputs.tagMessage.length;
         const msgPreview = inputs.tagMessage.length > 100 
           ? inputs.tagMessage.substring(0, 100) + '...' 
           : inputs.tagMessage;
-        logger.debug(`tag_message: length=${msgLength}, preview="${msgPreview.replace(/\n/g, '\\n')}"`);
+        logger.debug(`tagMessage: length=${msgLength}, preview="${msgPreview.replace(/\n/g, '\\n')}"`);
       }
       logger.debug(`repository: ${inputs.repository || 'undefined (will use current repo)'}`);
       logger.debug(`token: ${inputs.token ? '*** (explicitly provided)' : 'undefined (will resolve from env based on platform)'}`);
-      logger.debug(`repo_type: ${inputs.repoType}`);
-      logger.debug(`base_url: ${inputs.baseUrl || 'undefined (will auto-detect)'}`);
-      logger.debug(`update_existing: ${inputs.updateExisting}`);
-      logger.debug(`gpg_sign: ${inputs.gpgSign}`);
-      logger.debug(`gpg_key_id: ${inputs.gpgKeyId || 'undefined'}`);
-      logger.debug(`ignore_cert_errors: ${inputs.ignoreCertErrors}`);
+      logger.debug(`repoType: ${inputs.repoType}`);
+      logger.debug(`baseUrl: ${inputs.baseUrl || 'undefined (will auto-detect)'}`);
+      logger.debug(`updateExisting: ${inputs.updateExisting}`);
+      logger.debug(`gpgSign: ${inputs.gpgSign}`);
+      logger.debug(`gpgKeyId: ${inputs.gpgKeyId || 'undefined'}`);
+      logger.debug(`skipCertificateCheck: ${inputs.ignoreCertErrors}`);
       logger.debug(`force: ${inputs.force}`);
-      logger.debug(`push_tag: ${inputs.pushTag}`);
-      logger.debug(`git_user_name: ${inputs.gitUserName || 'undefined (will auto-detect)'}`);
-      logger.debug(`git_user_email: ${inputs.gitUserEmail || 'undefined (will auto-detect)'}`);
+      logger.debug(`pushTag: ${inputs.pushTag}`);
+      logger.debug(`gitUserName: ${inputs.gitUserName || 'undefined (will auto-detect)'}`);
+      logger.debug(`gitUserEmail: ${inputs.gitUserEmail || 'undefined (will auto-detect)'}`);
       logger.debug(`verbose: ${inputs.verbose}`);
     }
 
@@ -206,21 +206,21 @@ export async function run(): Promise<void> {
       // did not mark it as such (e.g., legacy APIs that don't signal updates explicitly).
       result = { ...result, updated: true, exists: true };
     }
-    core.setOutput('tag_name', result.tagName);
-    core.setOutput('tag_sha', result.sha);
-    core.setOutput('tag_exists', result.exists.toString());
-    core.setOutput('tag_updated', result.updated.toString());
-    core.setOutput('tag_created', result.created.toString());
+    core.setOutput('tagName', result.tagName);
+    core.setOutput('tagSha', result.sha);
+    core.setOutput('tagExists', result.exists.toString());
+    core.setOutput('tagUpdated', result.updated.toString());
+    core.setOutput('tagCreated', result.created.toString());
     core.setOutput('platform', repoInfo.platform);
 
     // Log all outputs when verbose is enabled
     if (inputs.verbose) {
       logger.debug('=== OUTPUTS ===');
-      logger.debug(`tag_name: ${result.tagName}`);
-      logger.debug(`tag_sha: ${result.sha}`);
-      logger.debug(`tag_exists: ${result.exists}`);
-      logger.debug(`tag_updated: ${result.updated}`);
-      logger.debug(`tag_created: ${result.created}`);
+      logger.debug(`tagName: ${result.tagName}`);
+      logger.debug(`tagSha: ${result.sha}`);
+      logger.debug(`tagExists: ${result.exists}`);
+      logger.debug(`tagUpdated: ${result.updated}`);
+      logger.debug(`tagCreated: ${result.created}`);
       logger.debug(`platform: ${repoInfo.platform}`);
     }
 

@@ -21,9 +21,9 @@ describe('getInputs', () => {
     process.env = originalEnv;
   });
 
-  it('should parse required tag_name', () => {
+  it('should parse required tagName', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
+      if (name === 'tagName') return 'v1.0.0';
       return '';
     });
 
@@ -31,24 +31,24 @@ describe('getInputs', () => {
     expect(inputs.tagName).toBe('v1.0.0');
   });
 
-  it('should throw error if tag_name is missing', () => {
+  it('should throw error if tagName is missing', () => {
     (core.getInput as jest.Mock).mockImplementation(() => '');
 
-    expect(() => getInputs()).toThrow('tag_name is required');
+    expect(() => getInputs()).toThrow('tagName is required');
   });
 
-  it('should throw error if tag_name is empty', () => {
+  it('should throw error if tagName is empty', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return '   ';
+      if (name === 'tagName') return '   ';
       return '';
     });
 
-    expect(() => getInputs()).toThrow('tag_name is required');
+    expect(() => getInputs()).toThrow('tagName is required');
   });
 
-  it('should throw error if tag_name contains forward slash', () => {
+  it('should throw error if tagName contains forward slash', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1/0/0';
+      if (name === 'tagName') return 'v1/0/0';
       return '';
     });
 
@@ -57,7 +57,7 @@ describe('getInputs', () => {
 
   it('should parse optional inputs with defaults', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
+      if (name === 'tagName') return 'v1.0.0';
       return '';
     });
 
@@ -72,14 +72,14 @@ describe('getInputs', () => {
 
   it('should parse boolean inputs correctly', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
-      if (name === 'tag_message') return 'Release v1.0.0'; // Required for gpg_sign
-      if (name === 'update_existing') return 'true';
-      if (name === 'gpg_sign') return 'true';
-      if (name === 'ignore_cert_errors') return 'true';
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'tagMessage') return 'Release v1.0.0'; // Required for gpgSign
+      if (name === 'updateExisting') return 'true';
+      if (name === 'gpgSign') return 'true';
+      if (name === 'skipCertificateCheck') return 'true';
       if (name === 'force') return 'true';
       if (name === 'verbose') return 'true';
-      if (name === 'push_tag') return 'true';
+      if (name === 'pushTag') return 'true';
       return '';
     });
 
@@ -92,9 +92,9 @@ describe('getInputs', () => {
     expect(inputs.pushTag).toBe(true);
   });
 
-  it('should default push_tag to true', () => {
+  it('should default pushTag to true', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
+      if (name === 'tagName') return 'v1.0.0';
       return '';
     });
 
@@ -102,10 +102,10 @@ describe('getInputs', () => {
     expect(inputs.pushTag).toBe(true);
   });
 
-  it('should parse push_tag as false when set', () => {
+  it('should parse pushTag as false when set', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
-      if (name === 'push_tag') return 'false';
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'pushTag') return 'false';
       return '';
     });
 
@@ -115,13 +115,13 @@ describe('getInputs', () => {
 
   it('should parse optional string inputs', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
-      if (name === 'tag_message') return 'Release v1.0.0';
-      if (name === 'tag_sha') return 'abc123';
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'tagMessage') return 'Release v1.0.0';
+      if (name === 'tagSha') return 'abc123';
       if (name === 'repository') return 'owner/repo';
       if (name === 'token') return 'token123';
-      if (name === 'gpg_key_id') return 'key123';
-      if (name === 'base_url') return 'https://example.com';
+      if (name === 'gpgKeyId') return 'key123';
+      if (name === 'baseUrl') return 'https://example.com';
       return '';
     });
 
@@ -137,7 +137,7 @@ describe('getInputs', () => {
   it('should not set token from environment in getInputs (token resolution happens later)', () => {
     process.env.GITHUB_TOKEN = 'env-token';
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
+      if (name === 'tagName') return 'v1.0.0';
       return '';
     });
 
@@ -145,10 +145,10 @@ describe('getInputs', () => {
     expect(inputs.token).toBeUndefined();
   });
 
-  it('should parse repo_type correctly', () => {
+  it('should parse repoType correctly', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
-      if (name === 'repo_type') return 'github';
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'repoType') return 'github';
       return '';
     });
 
@@ -156,10 +156,10 @@ describe('getInputs', () => {
     expect(inputs.repoType).toBe('github');
   });
 
-  it('should parse git repo_type correctly', () => {
+  it('should parse git repoType correctly', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
-      if (name === 'repo_type') return 'git';
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'repoType') return 'git';
       return '';
     });
 
@@ -167,40 +167,40 @@ describe('getInputs', () => {
     expect(inputs.repoType).toBe('git');
   });
 
-  it('should throw error for invalid repo_type', () => {
+  it('should throw error for invalid repoType', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
-      if (name === 'repo_type') return 'invalid';
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'repoType') return 'invalid';
       return '';
     });
 
-    expect(() => getInputs()).toThrow('Invalid repo_type');
+    expect(() => getInputs()).toThrow('Invalid repoType');
   });
 
-  it('should throw error if gpg_sign is true but tag_message is missing', () => {
+  it('should throw error if gpgSign is true but tagMessage is missing', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
-      if (name === 'gpg_sign') return 'true';
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'gpgSign') return 'true';
       return '';
     });
 
-    expect(() => getInputs()).toThrow('gpg_sign requires tag_message');
+    expect(() => getInputs()).toThrow('gpgSign requires tagMessage');
   });
 
-  it('should throw error for invalid base_url format', () => {
+  it('should throw error for invalid baseUrl format', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
-      if (name === 'base_url') return 'not-a-url';
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'baseUrl') return 'not-a-url';
       return '';
     });
 
-    expect(() => getInputs()).toThrow('Invalid base_url format');
+    expect(() => getInputs()).toThrow('Invalid baseUrl format');
   });
 
   it('should trim whitespace from inputs', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return '  v1.0.0  ';
-      if (name === 'tag_message') return '  Release  ';
+      if (name === 'tagName') return '  v1.0.0  ';
+      if (name === 'tagMessage') return '  Release  ';
       return '';
     });
 
@@ -209,10 +209,10 @@ describe('getInputs', () => {
     expect(inputs.tagMessage).toBe('Release');
   });
 
-  it('should normalize empty tag_message to undefined', () => {
+  it('should normalize empty tagMessage to undefined', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
-      if (name === 'tag_message') return '';
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'tagMessage') return '';
       return '';
     });
 
@@ -220,10 +220,10 @@ describe('getInputs', () => {
     expect(inputs.tagMessage).toBeUndefined();
   });
 
-  it('should normalize whitespace-only tag_message to undefined', () => {
+  it('should normalize whitespace-only tagMessage to undefined', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
-      if (name === 'tag_name') return 'v1.0.0';
-      if (name === 'tag_message') return '   \n\t  ';
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'tagMessage') return '   \n\t  ';
       return '';
     });
 

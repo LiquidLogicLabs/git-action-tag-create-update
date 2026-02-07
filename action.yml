@@ -2,13 +2,13 @@ name: 'Git Create/Update Tag'
 description: 'Create or update Git tags on local or remote repositories. Supports GitHub, Gitea, Bitbucket, and generic Git hosts with optional GPG signing.'
 author: 'LiquidLogicLabs'
 inputs:
-  tag_name:
+  tagName:
     description: 'Name of the tag to create/update'
     required: true
-  tag_message:
+  tagMessage:
     description: 'Message for annotated tags. If provided, creates an annotated tag; if omitted, creates a lightweight tag'
     required: false
-  tag_sha:
+  tagSha:
     description: 'Commit SHA to tag (defaults to current HEAD)'
     required: false
   repository:
@@ -17,26 +17,26 @@ inputs:
   token:
     description: 'Authentication token (defaults to GITHUB_TOKEN)'
     required: false
-  update_existing:
+  updateExisting:
     description: 'Whether to update existing tags (default: false)'
     required: false
     default: 'false'
-  gpg_sign:
+  gpgSign:
     description: 'Whether to GPG sign the tag (default: false)'
     required: false
     default: 'false'
-  gpg_key_id:
+  gpgKeyId:
     description: 'GPG key ID to use for signing'
     required: false
-  repo_type:
+  repoType:
     description: "Repository type ('github', 'gitea', 'bitbucket', 'generic', 'git', 'auto'). Default: 'auto' (auto-detect from repository URL). 'git' and 'generic' are equivalent aliases for local Git CLI operations."
     required: false
     default: 'auto'
-  base_url:
+  baseUrl:
     description: 'Base URL for self-hosted instances'
     required: false
-  ignore_cert_errors:
-    description: 'Ignore SSL certificate errors (default: false)'
+  skipCertificateCheck:
+    description: 'Skip TLS certificate verification (default: false)'
     required: false
     default: 'false'
   force:
@@ -47,26 +47,26 @@ inputs:
     description: 'Enable verbose/debug logging (default: false). Also enabled when ACTIONS_STEP_DEBUG=true.'
     required: false
     default: 'false'
-  push_tag:
+  pushTag:
     description: 'Push the tag to the remote repository after creating/updating (default: true). Only applies when using local Git CLI.'
     required: false
     default: 'true'
-  git_user_name:
+  gitUserName:
     description: 'Git user name for annotated tags. Auto-detected from GITHUB_ACTOR/GITEA_ACTOR if not provided. Falls back to local git config.'
     required: false
-  git_user_email:
+  gitUserEmail:
     description: 'Git user email for annotated tags. Auto-detected from GITHUB_ACTOR/GITEA_ACTOR if not provided. Falls back to local git config.'
     required: false
 outputs:
-  tag_name:
+  tagName:
     description: 'Name of the tag that was created/updated'
-  tag_sha:
+  tagSha:
     description: 'SHA of the commit that was tagged'
-  tag_exists:
+  tagExists:
     description: 'Whether the tag already existed (true/false)'
-  tag_updated:
+  tagUpdated:
     description: 'Whether an existing tag was updated (true/false)'
-  tag_created:
+  tagCreated:
     description: 'Whether a new tag was created (true/false)'
   platform:
     description: 'Detected or specified platform (same as repo_type input or detected value)'

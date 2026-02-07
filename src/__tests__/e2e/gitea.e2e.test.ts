@@ -104,19 +104,19 @@ describe('Gitea E2E Tests', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
-        case 'tag_name':
+        case 'tagName':
           return tagName;
-        case 'tag_message':
+        case 'tagMessage':
           return 'E2E test: Create tag';
-        case 'tag_sha':
+        case 'tagSha':
           return commitSha;
         case 'repository':
           return repository;
         case 'token':
           return token;
-        case 'repo_type':
+        case 'repoType':
           return 'gitea';
-        case 'base_url':
+        case 'baseUrl':
           return baseUrl;
         default:
           return '';
@@ -129,8 +129,8 @@ describe('Gitea E2E Tests', () => {
     const exists = await api.tagExists(tagName);
     expect(exists).toBe(true);
 
-    expect(core.setOutput).toHaveBeenCalledWith('tag_name', tagName);
-    expect(core.setOutput).toHaveBeenCalledWith('tag_created', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tagName', tagName);
+    expect(core.setOutput).toHaveBeenCalledWith('tagCreated', 'true');
     expect(core.setOutput).toHaveBeenCalledWith('platform', 'gitea');
 
     await api.deleteTag(tagName);
@@ -159,21 +159,21 @@ describe('Gitea E2E Tests', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
-        case 'tag_name':
+        case 'tagName':
           return tagName;
-        case 'tag_message':
+        case 'tagMessage':
           return 'E2E test: Updated tag';
-        case 'tag_sha':
+        case 'tagSha':
           return commitSha;
         case 'repository':
           return repository;
         case 'token':
           return token;
-        case 'repo_type':
+        case 'repoType':
           return 'gitea';
-        case 'base_url':
+        case 'baseUrl':
           return baseUrl;
-        case 'update_existing':
+        case 'updateExisting':
           return 'true';
         case 'force':
           return 'true';
@@ -182,7 +182,7 @@ describe('Gitea E2E Tests', () => {
       }
     });
     (core.getBooleanInput as jest.Mock).mockImplementation((name: string) => {
-      return name === 'update_existing' || name === 'force' || name === 'verbose';
+      return name === 'updateExisting' || name === 'force' || name === 'verbose';
     });
 
     await run();
@@ -193,7 +193,7 @@ describe('Gitea E2E Tests', () => {
     console.log(`getBooleanInput calls: ${JSON.stringify((core.getBooleanInput as jest.Mock).mock.calls, null, 2)}`);
     console.log(`getInput calls: ${JSON.stringify((core.getInput as jest.Mock).mock.calls, null, 2)}`);
 
-    expect(core.setOutput).toHaveBeenCalledWith('tag_updated', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tagUpdated', 'true');
     await api.deleteTag(tagName);
   });
 });
