@@ -62,46 +62,46 @@ function parseRepoType(value) {
     if (validTypes.includes(normalized)) {
         return normalized;
     }
-    throw new Error(`Invalid repo_type: ${value}. Must be one of: ${validTypes.join(', ')}`);
+    throw new Error(`Invalid repoType: ${value}. Must be one of: ${validTypes.join(', ')}`);
 }
 /**
  * Get and validate action inputs
  */
 function getInputs() {
-    const tagName = core.getInput('tag_name', { required: true });
+    const tagName = core.getInput('tagName', { required: true });
     if (!tagName || tagName.trim() === '') {
-        throw new Error('tag_name is required and cannot be empty');
+        throw new Error('tagName is required and cannot be empty');
     }
     // Validate tag name format (basic validation)
     if (!/^[^/]+$/.test(tagName)) {
         throw new Error(`Invalid tag name: ${tagName}. Tag names cannot contain forward slashes.`);
     }
-    const tagMessage = getOptionalInput('tag_message');
-    const tagSha = getOptionalInput('tag_sha');
+    const tagMessage = getOptionalInput('tagMessage');
+    const tagSha = getOptionalInput('tagSha');
     const repository = getOptionalInput('repository');
     const token = getOptionalInput('token');
     const force = getBooleanInput('force', false);
-    const updateExisting = getBooleanInput('update_existing', false) || force;
-    const gpgSign = getBooleanInput('gpg_sign', false);
-    const gpgKeyId = getOptionalInput('gpg_key_id');
-    const repoTypeStr = core.getInput('repo_type') || 'auto';
+    const updateExisting = getBooleanInput('updateExisting', false) || force;
+    const gpgSign = getBooleanInput('gpgSign', false);
+    const gpgKeyId = getOptionalInput('gpgKeyId');
+    const repoTypeStr = core.getInput('repoType') || 'auto';
     const repoType = parseRepoType(repoTypeStr);
-    const baseUrl = getOptionalInput('base_url');
-    const ignoreCertErrors = getBooleanInput('ignore_cert_errors', false);
+    const baseUrl = getOptionalInput('baseUrl');
+    const ignoreCertErrors = getBooleanInput('skipCertificateCheck', false);
     const verboseInput = getBooleanInput('verbose', false);
     const envStepDebug = (process.env.ACTIONS_STEP_DEBUG || '').toLowerCase();
     const stepDebugEnabled = (typeof core.isDebug === 'function' && core.isDebug()) || envStepDebug === 'true' || envStepDebug === '1';
     const verbose = verboseInput || stepDebugEnabled;
-    const pushTag = getBooleanInput('push_tag', true);
-    const gitUserName = getOptionalInput('git_user_name');
-    const gitUserEmail = getOptionalInput('git_user_email');
+    const pushTag = getBooleanInput('pushTag', true);
+    const gitUserName = getOptionalInput('gitUserName');
+    const gitUserEmail = getOptionalInput('gitUserEmail');
     // Validate GPG signing requirements
     if (gpgSign && !tagMessage) {
-        throw new Error('gpg_sign requires tag_message (GPG signing only works with annotated tags)');
+        throw new Error('gpgSign requires tagMessage (GPG signing only works with annotated tags)');
     }
     // Validate GPG key ID if signing is enabled
     if (gpgSign && gpgKeyId && gpgKeyId.trim() === '') {
-        throw new Error('gpg_key_id cannot be empty when gpg_sign is true');
+        throw new Error('gpgKeyId cannot be empty when gpgSign is true');
     }
     // Validate base URL format if provided
     if (baseUrl) {
@@ -109,7 +109,7 @@ function getInputs() {
             new URL(baseUrl);
         }
         catch {
-            throw new Error(`Invalid base_url format: ${baseUrl}`);
+            throw new Error(`Invalid baseUrl format: ${baseUrl}`);
         }
     }
     const normalizedTagMessage = tagMessage?.trim() || undefined;
