@@ -11,6 +11,10 @@ import { PlatformAPI, TagOptions, RepoType } from './types';
  */
 export async function run(): Promise<void> {
   try {
+    // Emit at least one line before any validation so the step never appears completely silent
+    // (e.g. if getInputs() throws, we still have evidence the action started)
+    core.info('Git Create/Update Tag action started');
+
     // Get and validate inputs
     const inputs = getInputs();
     const logger = new Logger(inputs.verbose);

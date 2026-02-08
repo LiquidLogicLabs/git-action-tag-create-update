@@ -26428,14 +26428,30 @@ exports.getInputs = getInputs;
 exports.resolveToken = resolveToken;
 const core = __importStar(__nccwpck_require__(7484));
 /**
- * Parse boolean input with default value
+ * Parse a string as a boolean (case-insensitive).
+ * Returns true for '1' or 'true', false for '0' or 'false'.
+ * Empty/undefined/whitespace uses defaultValue; unknown values are treated as false.
+ */
+function parseBoolean(value, defaultValue = false) {
+    const s = (value ?? '').trim().toLowerCase();
+    if (s === '') {
+        return defaultValue;
+    }
+    if (s === 'true' || s === '1') {
+        return true;
+    }
+    if (s === 'false' || s === '0') {
+        return false;
+    }
+    return false;
+}
+/**
+ * Get boolean action input with default value.
+ * Uses parseBoolean so '1'/'0' and 'true'/'false' (any case) are accepted.
  */
 function getBooleanInput(name, defaultValue = false) {
     const value = core.getInput(name);
-    if (value === '') {
-        return defaultValue;
-    }
-    return value.toLowerCase() === 'true';
+    return parseBoolean(value === '' ? undefined : value, defaultValue);
 }
 /**
  * Get optional string input
@@ -26480,8 +26496,10 @@ function getInputs() {
     const baseUrl = getOptionalInput('baseUrl');
     const ignoreCertErrors = getBooleanInput('skipCertificateCheck', false);
     const verboseInput = getBooleanInput('verbose', false);
-    const envStepDebug = (process.env.ACTIONS_STEP_DEBUG || '').toLowerCase();
-    const stepDebugEnabled = (typeof core.isDebug === 'function' && core.isDebug()) || envStepDebug === 'true' || envStepDebug === '1';
+    const stepDebugEnabled = (typeof core.isDebug === 'function' && core.isDebug()) ||
+        parseBoolean(process.env.ACTIONS_STEP_DEBUG) ||
+        parseBoolean(process.env.ACTIONS_RUNNER_DEBUG) ||
+        parseBoolean(process.env.RUNNER_DEBUG);
     const verbose = verboseInput || stepDebugEnabled;
     const pushTag = getBooleanInput('pushTag', true);
     const gitUserName = getOptionalInput('gitUserName');
@@ -27005,6 +27023,9 @@ const platform_factory_1 = __nccwpck_require__(1990);
  */
 async function run() {
     try {
+        // Emit at least one line before any validation so the step never appears completely silent
+        // (e.g. if getInputs() throws, we still have evidence the action started)
+        core.info('Git Create/Update Tag action started');
         // Get and validate inputs
         const inputs = (0, config_1.getInputs)();
         const logger = new logger_1.Logger(inputs.verbose);

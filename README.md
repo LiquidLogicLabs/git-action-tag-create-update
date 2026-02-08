@@ -275,6 +275,10 @@ Verbose mode will log:
 - Platform detection details
 - Detailed error information
 
+### Gitea: No output when repo debug is enabled
+
+On Gitea, enabling "Enable debug" in repository or runner settings may **not** set `ACTIONS_STEP_DEBUG` or `RUNNER_DEBUG` for job steps. If the action step shows no output (or only a failure message), force verbose logs by setting **`verbose: true`** in the action inputs. The action also prints a first line (`Git Create/Update Tag action started`) as soon as it runs so the step is never completely silent.
+
 ## Examples
 
 ### Release Workflow

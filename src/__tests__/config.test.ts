@@ -92,6 +92,19 @@ describe('getInputs', () => {
     expect(inputs.pushTag).toBe(true);
   });
 
+  it('should accept 1 and 0 for boolean inputs (case-insensitive)', () => {
+    (core.getInput as jest.Mock).mockImplementation((name: string) => {
+      if (name === 'tagName') return 'v1.0.0';
+      if (name === 'verbose') return '1';
+      if (name === 'pushTag') return '0';
+      return '';
+    });
+
+    const inputs = getInputs();
+    expect(inputs.verbose).toBe(true);
+    expect(inputs.pushTag).toBe(false);
+  });
+
   it('should default pushTag to true', () => {
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       if (name === 'tagName') return 'v1.0.0';
