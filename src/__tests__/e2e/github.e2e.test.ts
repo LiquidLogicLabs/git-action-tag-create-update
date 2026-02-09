@@ -97,17 +97,17 @@ describe('GitHub E2E Tests', () => {
     // Set up inputs
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
-        case 'tagName':
+        case 'tag-name':
           return tagName;
-        case 'tagMessage':
+        case 'tag-message':
           return tagMessage;
-        case 'tagSha':
+        case 'tag-sha':
           return commitSha;
         case 'repository':
           return repository;
         case 'token':
           return token;
-        case 'repoType':
+        case 'repo-type':
           return 'github';
         default:
           return '';
@@ -123,9 +123,9 @@ describe('GitHub E2E Tests', () => {
     expect(exists).toBe(true);
 
     // Verify outputs
-    expect(core.setOutput).toHaveBeenCalledWith('tagName', tagName);
-    expect(core.setOutput).toHaveBeenCalledWith('tagCreated', 'true');
-    expect(core.setOutput).toHaveBeenCalledWith('tagExists', 'false');
+    expect(core.setOutput).toHaveBeenCalledWith('tag-name', tagName);
+    expect(core.setOutput).toHaveBeenCalledWith('tag-created', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tag-exists', 'false');
     expect(core.setOutput).toHaveBeenCalledWith('platform', 'github');
 
     // Cleanup
@@ -156,19 +156,19 @@ describe('GitHub E2E Tests', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
-        case 'tagName':
+        case 'tag-name':
           return tagName;
-        case 'tagMessage':
+        case 'tag-message':
           return newMessage;
-        case 'tagSha':
+        case 'tag-sha':
           return newCommitSha;
         case 'repository':
           return repository;
         case 'token':
           return token;
-        case 'repoType':
+        case 'repo-type':
           return 'github';
-        case 'updateExisting':
+        case 'update-existing':
           return 'true';
         case 'force':
           return 'true';
@@ -177,15 +177,15 @@ describe('GitHub E2E Tests', () => {
       }
     });
     (core.getBooleanInput as jest.Mock).mockImplementation((name: string) => {
-      return name === 'updateExisting' || name === 'force' || name === 'verbose';
+      return name === 'update-existing' || name === 'force' || name === 'verbose';
     });
 
     // Run the action
     await run();
 
     // Verify outputs
-    expect(core.setOutput).toHaveBeenCalledWith('tagUpdated', 'true');
-    expect(core.setOutput).toHaveBeenCalledWith('tagExists', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tag-updated', 'true');
+    expect(core.setOutput).toHaveBeenCalledWith('tag-exists', 'true');
 
     // Cleanup
     await api.deleteTag(tagName);
@@ -201,17 +201,17 @@ describe('GitHub E2E Tests', () => {
 
     (core.getInput as jest.Mock).mockImplementation((name: string) => {
       switch (name) {
-        case 'tagName':
+        case 'tag-name':
           return tagName;
-        case 'tagMessage':
+        case 'tag-message':
           return 'Auto-detect test';
-        case 'tagSha':
+        case 'tag-sha':
           return commitSha;
         case 'repository':
           return repository;
         case 'token':
           return token;
-        case 'repoType':
+        case 'repo-type':
           return 'auto'; // Auto-detect
         default:
           return '';

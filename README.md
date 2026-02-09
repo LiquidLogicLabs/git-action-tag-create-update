@@ -279,6 +279,15 @@ Verbose mode will log:
 
 On Gitea, enabling "Enable debug" in repository or runner settings may **not** set `ACTIONS_STEP_DEBUG` or `RUNNER_DEBUG` for job steps. If the action step shows no output (or only a failure message), force verbose logs by setting **`verbose: true`** in the action inputs. The action also prints a first line (`Git Create/Update Tag action started`) as soon as it runs so the step is never completely silent.
 
+### Input value not received (e.g. `tagName`)
+
+The action reads `tagName` from the workflow and accepts it whether the runner exposes it as `INPUT_TAGNAME` or `INPUT_TAG_NAME`. If the value still doesn’t appear:
+
+1. **Step never runs** – Some runners (e.g. Gitea/act) validate required inputs before starting the action. If they expect a different env key than the one set from your `with: tagName: ...`, they may fail the step with “Input required and not supplied” before the action runs. Ensure you’re on a recent action version (v1.1.1+) that reads both keys.
+2. **Expression is empty** – If you use `tagName: ${{ steps.someId.outputs.name }}`, ensure the step `id` and output name are correct and that the step ran and set the output. Add a prior step that logs the value (e.g. “Log tag: …”) to confirm it’s set.
+
+With step debug enabled (`ACTIONS_STEP_DEBUG` or `verbose: true`), the action logs which env key provided the value (`INPUT_TAGNAME` or `INPUT_TAG_NAME`) to help troubleshoot.
+
 ## Examples
 
 ### Release Workflow

@@ -23,6 +23,7 @@ export interface ActionInputs {
     ignoreCertErrors: boolean;
     force: boolean;
     verbose: boolean;
+    debugMode: boolean;
     pushTag: boolean;
     gitUserName?: string;
     gitUserEmail?: string;

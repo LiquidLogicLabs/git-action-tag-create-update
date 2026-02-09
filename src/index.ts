@@ -17,7 +17,7 @@ export async function run(): Promise<void> {
 
     // Get and validate inputs
     const inputs = getInputs();
-    const logger = new Logger(inputs.verbose);
+    const logger = new Logger(inputs.verbose, inputs.debugMode);
 
     logger.info(`Creating/updating tag: ${inputs.tagName}`);
     
@@ -210,11 +210,11 @@ export async function run(): Promise<void> {
       // did not mark it as such (e.g., legacy APIs that don't signal updates explicitly).
       result = { ...result, updated: true, exists: true };
     }
-    core.setOutput('tagName', result.tagName);
-    core.setOutput('tagSha', result.sha);
-    core.setOutput('tagExists', result.exists.toString());
-    core.setOutput('tagUpdated', result.updated.toString());
-    core.setOutput('tagCreated', result.created.toString());
+    core.setOutput('tag-name', result.tagName);
+    core.setOutput('tag-sha', result.sha);
+    core.setOutput('tag-exists', result.exists.toString());
+    core.setOutput('tag-updated', result.updated.toString());
+    core.setOutput('tag-created', result.created.toString());
     core.setOutput('platform', repoInfo.platform);
 
     // Log all outputs when verbose is enabled
