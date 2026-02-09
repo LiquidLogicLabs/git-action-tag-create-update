@@ -70,6 +70,26 @@ function getOptionalInput(name) {
     return value === '' ? undefined : value;
 }
 /**
+ * Get the required tag name input.
+ * Tries 'tagName' first (action.yml canonical name), then 'tag_name' so we work with
+ * runners (e.g. Gitea/act) that expose inputs as snake_case env vars (INPUT_TAG_NAME).
+ */
+function getTagNameInput() {
+    const fromTagName = core.getInput('tag-name');
+    const fromTag_name = core.getInput('tag_name');
+    const value = (fromTagName || fromTag_name).trim();
+    if (!value) {
+        throw new Error('tag-name is required and cannot be empty. ' +
+            'Ensure the workflow passes it (e.g. with: tag-name: ${{ steps.<id>.outputs.name }}) and that the step runs (if: condition and upstream outputs are set).');
+    }
+    // Log which env key had the value when debug is on (helps troubleshoot runner/env differences)
+    if (process.env.ACTIONS_STEP_DEBUG === 'true' || process.env.RUNNER_DEBUG === '1') {
+        const source = fromTagName ? 'INPUT_TAG-NAME' : 'INPUT_TAG_NAME';
+        core.info(`[tag-name] value read from ${source}`);
+    }
+    return value;
+}
+/**
  * Parse and validate repo type
  */
 function parseRepoType(value) {
@@ -84,35 +104,32 @@ function parseRepoType(value) {
  * Get and validate action inputs
  */
 function getInputs() {
-    const tagName = core.getInput('tagName', { required: true });
-    if (!tagName || tagName.trim() === '') {
-        throw new Error('tagName is required and cannot be empty');
-    }
+    const tagName = getTagNameInput();
     // Validate tag name format (basic validation)
     if (!/^[^/]+$/.test(tagName)) {
         throw new Error(`Invalid tag name: ${tagName}. Tag names cannot contain forward slashes.`);
     }
-    const tagMessage = getOptionalInput('tagMessage');
-    const tagSha = getOptionalInput('tagSha');
+    const tagMessage = getOptionalInput('tag-message');
+    const tagSha = getOptionalInput('tag-sha');
     const repository = getOptionalInput('repository');
     const token = getOptionalInput('token');
     const force = getBooleanInput('force', false);
-    const updateExisting = getBooleanInput('updateExisting', false) || force;
-    const gpgSign = getBooleanInput('gpgSign', false);
-    const gpgKeyId = getOptionalInput('gpgKeyId');
-    const repoTypeStr = core.getInput('repoType') || 'auto';
+    const updateExisting = getBooleanInput('update-existing', false) || force;
+    const gpgSign = getBooleanInput('gpg-sign', false);
+    const gpgKeyId = getOptionalInput('gpg-key-id');
+    const repoTypeStr = core.getInput('repo-type') || 'auto';
     const repoType = parseRepoType(repoTypeStr);
-    const baseUrl = getOptionalInput('baseUrl');
-    const ignoreCertErrors = getBooleanInput('skipCertificateCheck', false);
+    const baseUrl = getOptionalInput('base-url');
+    const ignoreCertErrors = getBooleanInput('skip-certificate-check', false);
     const verboseInput = getBooleanInput('verbose', false);
-    const stepDebugEnabled = (typeof core.isDebug === 'function' && core.isDebug()) ||
+    const debugMode = (typeof core.isDebug === 'function' && core.isDebug()) ||
         parseBoolean(process.env.ACTIONS_STEP_DEBUG) ||
         parseBoolean(process.env.ACTIONS_RUNNER_DEBUG) ||
         parseBoolean(process.env.RUNNER_DEBUG);
-    const verbose = verboseInput || stepDebugEnabled;
-    const pushTag = getBooleanInput('pushTag', true);
-    const gitUserName = getOptionalInput('gitUserName');
-    const gitUserEmail = getOptionalInput('gitUserEmail');
+    const verbose = verboseInput || debugMode;
+    const pushTag = getBooleanInput('push-tag', true);
+    const gitUserName = getOptionalInput('git-user-name');
+    const gitUserEmail = getOptionalInput('git-user-email');
     // Validate GPG signing requirements
     if (gpgSign && !tagMessage) {
         throw new Error('gpgSign requires tagMessage (GPG signing only works with annotated tags)');
@@ -145,6 +162,7 @@ function getInputs() {
         ignoreCertErrors,
         force,
         verbose,
+        debugMode,
         pushTag,
         gitUserName,
         gitUserEmail

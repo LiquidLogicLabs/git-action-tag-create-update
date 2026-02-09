@@ -50,7 +50,7 @@ jobs:
         uses: LiquidLogicLabs/git-tag-validate-version-action@v1
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
-          versionType: 'auto'
+          version-type: 'auto'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -79,7 +79,7 @@ jobs:
         uses: mikepenz/release-changelog-builder-action@v6
         with:
           mode: "HYBRID"
-          configurationJson: |
+          configuration-json: |
             {
               "template": "#{{CHANGELOG}}\n\n<details>\n<summary>Pull Requests</summary>\n\n#{{PR_LIST}}\n</details>\n\n---\n\n### Usage\n\n```yaml\n- uses: LiquidLogicLabs/git-create-update-tag-action@${{ github.ref_name }}\n  with:\n    tag_name: 'v1.0.0'\n    tag_message: 'Release v1.0.0'\n```"
             }
@@ -87,7 +87,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create/Update Major, Minor, and Latest Version Tags
-        if: steps.version.outputs.hasPrerelease != 'true' && steps.version.outputs.isValid == 'true'
+        if: steps.version.outputs.has-prerelease != 'true' && steps.version.outputs.is-valid == 'true'
         uses: LiquidLogicLabs/git-floating-version-tags-action@v1
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
@@ -101,7 +101,7 @@ jobs:
           name: Release ${{ steps.version.outputs.version }}
           body: ${{ steps.release_notes.outputs.changelog }}
           draft: false
-          prerelease: ${{ steps.version.outputs.hasPrerelease == 'true' }}
+          prerelease: ${{ steps.version.outputs.has-prerelease == 'true' }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release Summary
@@ -110,7 +110,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **GitHub Release**: [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.inputs.tag || github.ref_name }})" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.version.outputs.hasPrerelease }}" == "true" ]; then
+          if [ "${{ steps.version.outputs.has-prerelease }}" == "true" ]; then
             echo "- **Status**: ⚠️ Pre-release (for testing)" >> $GITHUB_STEP_SUMMARY
           else
             echo "- **Status**: ✅ Stable release" >> $GITHUB_STEP_SUMMARY
