@@ -4,6 +4,10 @@ on:
   workflow_call:  # Called by release workflow
   workflow_dispatch:  # Allow manual triggering
 
+concurrency:
+  group: ${{ github.workflow || 'E2E Tests' }}-${{ github.ref || github.sha }}
+  cancel-in-progress: true
+
 permissions:
   contents: write  # needed for creating test tags
 

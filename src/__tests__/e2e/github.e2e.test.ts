@@ -28,9 +28,11 @@ jest.mock('@actions/core', () => ({
   setSecret: jest.fn()
 }));
 
+const DEFAULT_E2E_REPO = 'LiquidLogicLabs/git-action-release-tests';
+
 describe('GitHub E2E Tests', () => {
-  const repository = process.env.TEST_GITHUB_REPOSITORY;
-  const token = process.env.TEST_GITHUB_TOKEN;
+  const repository = process.env.TEST_GITHUB_REPOSITORY || DEFAULT_E2E_REPO;
+  const token = process.env.TEST_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
   const tagPrefix = process.env.TEST_TAG_PREFIX || 'test-';
   const uniqueId = Date.now().toString();
   
@@ -41,9 +43,8 @@ describe('GitHub E2E Tests', () => {
   beforeAll(() => {
     // Prevent action from auto-running when imported
     process.env.SKIP_RUN = 'true';
-    if (!repository || !token) {
-      console.log('⚠️ Skipping GitHub E2E tests: TEST_GITHUB_REPOSITORY or TEST_GITHUB_TOKEN not set');
-      return;
+    if (!token) {
+      throw new Error('TEST_GITHUB_TOKEN or GITHUB_TOKEN required for e2e');
     }
 
     const [owner, repo] = repository.split('/');
@@ -84,10 +85,6 @@ describe('GitHub E2E Tests', () => {
   });
 
   it('should create a new tag via GitHub API', async () => {
-    if (!repository || !token) {
-      return;
-    }
-
     const tagName = `${testTagName}-create`;
     const tagMessage = 'E2E test: Create tag';
     
@@ -133,10 +130,6 @@ describe('GitHub E2E Tests', () => {
   });
 
   it('should update an existing tag via GitHub API', async () => {
-    if (!repository || !token) {
-      return;
-    }
-
     const tagName = `${testTagName}-update`;
     const commitSha = await getLatestCommitSha(repoInfo);
 
@@ -192,10 +185,6 @@ describe('GitHub E2E Tests', () => {
   });
 
   it('should detect platform automatically from repository URL', async () => {
-    if (!repository || !token) {
-      return;
-    }
-
     const tagName = `${testTagName}-auto`;
     const commitSha = await getLatestCommitSha(repoInfo);
 

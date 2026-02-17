@@ -49,8 +49,7 @@ describe('Gitea E2E Tests', () => {
     process.env.SKIP_RUN = 'true';
     
     if (!repository || !token) {
-      console.log('⚠️ Skipping Gitea E2E tests: TEST_GITEA_REPOSITORY or TEST_GITEA_TOKEN not set');
-      return;
+      throw new Error('TEST_GITEA_REPOSITORY and TEST_GITEA_TOKEN required for e2e');
     }
 
     const [owner, repo] = repository.split('/');
@@ -95,10 +94,6 @@ describe('Gitea E2E Tests', () => {
   });
 
   it('should create a new tag via Gitea API', async () => {
-    if (!repository || !token) {
-      return;
-    }
-
     const tagName = `${testTagName}-create`;
     const commitSha = await getLatestCommitSha(repoInfo, repoUrl, token);
 
@@ -137,10 +132,6 @@ describe('Gitea E2E Tests', () => {
   });
 
   it('should update an existing tag via Gitea API', async () => {
-    if (!repository || !token) {
-      return;
-    }
-
     const tagName = `${testTagName}-update`;
     const commitSha = await getLatestCommitSha(repoInfo, repoUrl, token);
 

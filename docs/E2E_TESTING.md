@@ -23,11 +23,11 @@ E2E tests require environment variables to be set with test repository credentia
 
 Required secrets for the `e2e-github` environment:
 
-- `TEST_GITHUB_REPOSITORY` - Repository in `owner/repo` format (e.g., `myorg/test-repo`)
-- `TEST_GITHUB_TOKEN` - GitHub personal access token with `repo` scope
+- `TEST_GITHUB_REPOSITORY` (optional) - Repository in `owner/repo` format. Default: `LiquidLogicLabs/git-action-release-tests` (shared e2e test repo).
+- `TEST_GITHUB_TOKEN` - GitHub personal access token with `repo` scope (or set `GITHUB_TOKEN`).
 - `TEST_TAG_PREFIX` (optional) - Prefix for test tags (default: `test-`)
 
-**Note**: If `TEST_GITHUB_REPOSITORY` is not set, the tests will use `GITHUB_REPOSITORY` from the workflow context. If `TEST_GITHUB_TOKEN` is not set, tests will use `GITHUB_TOKEN`.
+**Note**: If `TEST_GITHUB_REPOSITORY` is not set, tests use `LiquidLogicLabs/git-action-release-tests`. If `TEST_GITHUB_TOKEN` is not set, tests use `GITHUB_TOKEN`.
 
 ### Gitea Platform
 

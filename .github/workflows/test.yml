@@ -4,6 +4,10 @@ on:
   workflow_call:  # Called by CI workflow
   workflow_dispatch:  # Allow manual triggering
 
+concurrency:
+  group: ${{ github.workflow || 'Test' }}-${{ github.event.pull_request.number || github.ref || github.sha }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

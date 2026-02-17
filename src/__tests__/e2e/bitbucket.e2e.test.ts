@@ -1,7 +1,9 @@
 /**
  * E2E tests for Bitbucket platform
  * Tests the full action workflow with real Bitbucket API calls
- * 
+ *
+ * Skipped for now (see describe.skip below). Re-enable when Bitbucket e2e is needed.
+ *
  * Required environment variables:
  * - TEST_BITBUCKET_REPOSITORY: Repository in owner/repo format (e.g., "owner/repo")
  * - TEST_BITBUCKET_TOKEN: Bitbucket app password or access token
@@ -28,7 +30,7 @@ jest.mock('@actions/core', () => ({
   setSecret: jest.fn()
 }));
 
-describe('Bitbucket E2E Tests', () => {
+describe.skip('Bitbucket E2E Tests', () => {
   const repository = process.env.TEST_BITBUCKET_REPOSITORY;
   const token = process.env.TEST_BITBUCKET_TOKEN;
   const baseUrl = process.env.TEST_BITBUCKET_BASE_URL || 'https://api.bitbucket.org/2.0';
@@ -45,8 +47,7 @@ describe('Bitbucket E2E Tests', () => {
     process.env.SKIP_RUN = 'true';
     
     if (!repository || !token) {
-      console.log('⚠️ Skipping Bitbucket E2E tests: TEST_BITBUCKET_REPOSITORY or TEST_BITBUCKET_TOKEN not set');
-      return;
+      throw new Error('TEST_BITBUCKET_REPOSITORY and TEST_BITBUCKET_TOKEN required for e2e');
     }
 
     const [owner, repo] = repository.split('/');
@@ -90,10 +91,6 @@ describe('Bitbucket E2E Tests', () => {
   });
 
   it('should create a new tag via Bitbucket API', async () => {
-    if (!repository || !token) {
-      return;
-    }
-
     const tagName = `${testTagName}-create`;
     const commitSha = await getLatestCommitSha(repoInfo, repoUrl);
 
@@ -132,10 +129,6 @@ describe('Bitbucket E2E Tests', () => {
   });
 
   it('should update an existing tag via Bitbucket API', async () => {
-    if (!repository || !token) {
-      return;
-    }
-
     const tagName = `${testTagName}-update`;
     const commitSha = await getLatestCommitSha(repoInfo, repoUrl);
 

@@ -33,10 +33,9 @@ coverage/
 .bmad-core/
 .github/chatmodes/
 
-# act local testing files
-.act.env.local
-.act.vars.local
-.act.secrets.local
+# act local testing files (do not commit secrets)
+.act.*
+!.act.*.example
 
 # Local dev (act)
 .env.*
