@@ -51,7 +51,7 @@ See [TESTING.md](./TESTING.md) for comprehensive testing documentation.
 
 ## Releasing
 
-This project uses `standard-version` for automated release tag creation with commit summaries.
+This project uses npm lifecycle hooks (`preversion`/`version`/`postversion`) with `conventional-changelog-cli` for versioning and changelog generation.
 
 ### Pre-Release Checklist
 
@@ -68,7 +68,7 @@ npm run release:minor  # Minor release (1.0.0 → 1.1.0)
 npm run release:major  # Major release (1.0.0 → 2.0.0)
 ```
 
-The release command automatically bumps version, analyzes commits, creates git commit and tag with commit summary, and pushes to trigger the GitHub Actions release workflow.
+The release command triggers `npm version` which automatically runs tests (preversion), updates CHANGELOG.md from conventional commits (version), bumps the version, creates a git commit and tag, and pushes to trigger the GitHub Actions release workflow (postversion).
 
 ## Resources
 
