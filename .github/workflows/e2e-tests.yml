@@ -39,7 +39,7 @@ jobs:
           - platform: gitea
             testPattern: gitea.e2e
             giteaBaseUrl: https://git.ravenwolf.org
-            giteaRepo: l3io/git-action-release-tests
+            giteaRepo: liquidlogiclabs/git-action-release-tests
             tagPrefix: test-
           # - platform: bitbucket
           #   testPattern: bitbucket.e2e
@@ -66,7 +66,7 @@ jobs:
       - name: Prepare tag metadata
         id: prep
         run: |
-          TAG_NAME="${{ matrix.tagPrefix || 'test-' }}${GITHUB_RUN_ID}-${{ matrix.platform }}-${GITHUB_RUN_ATTEMPT}"
+          TAG_NAME="${{ matrix.tagPrefix || 'test-' }}$(date +%s)-${GITHUB_SHA:0:7}-${{ matrix.platform }}"
           echo "tag-name=$TAG_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Resolve platform inputs

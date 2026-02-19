@@ -1,11 +1,16 @@
 /**
  * E2E tests for Gitea platform
  * Tests the full action workflow with real Gitea API calls
- * 
- * Required environment variables:
- * - TEST_GITEA_REPOSITORY: Repository in owner/repo format (e.g., "owner/repo")
- * - TEST_GITEA_TOKEN: Gitea personal access token with repo scope
- * - TEST_GITEA_BASE_URL: Gitea base URL (e.g., "https://gitea.com/api/v1" or custom server)
+ *
+ * Defaults (LiquidLogicLabs):
+ * - TEST_GITEA_REPOSITORY: liquidlogiclabs/git-action-release-tests (https://git.ravenwolf.org/liquidlogiclabs/git-action-release-tests)
+ * - TEST_GITEA_TOKEN: falls back to GITEA_TOKEN when unset
+ * - TEST_GITEA_BASE_URL: https://git.ravenwolf.org/api/v1 when using the default repo
+ *
+ * Override with environment variables:
+ * - TEST_GITEA_REPOSITORY: Repository in owner/repo format
+ * - TEST_GITEA_TOKEN or GITEA_TOKEN: Gitea personal access token with repo scope
+ * - TEST_GITEA_BASE_URL: Gitea API base URL
  * - TEST_TAG_PREFIX: Prefix for test tags (default: "test-")
  */
 
@@ -28,13 +33,18 @@ jest.mock('@actions/core', () => ({
   setSecret: jest.fn()
 }));
 
+const DEFAULT_GITEA_REPO = 'liquidlogiclabs/git-action-release-tests';
+const DEFAULT_GITEA_BASE_URL = 'https://git.ravenwolf.org/api/v1';
+
 describe('Gitea E2E Tests', () => {
-  const repository = process.env.TEST_GITEA_REPOSITORY;
-  const token = process.env.TEST_GITEA_TOKEN;
-  const baseUrl = process.env.TEST_GITEA_BASE_URL || 'https://gitea.com/api/v1';
+  const repository = process.env.TEST_GITEA_REPOSITORY || DEFAULT_GITEA_REPO;
+  const token = process.env.TEST_GITEA_TOKEN || process.env.GITEA_TOKEN;
+  const baseUrl =
+    process.env.TEST_GITEA_BASE_URL ||
+    (repository === DEFAULT_GITEA_REPO ? DEFAULT_GITEA_BASE_URL : 'https://gitea.com/api/v1');
   const tagPrefix = process.env.TEST_TAG_PREFIX || 'test-';
   const uniqueId = Date.now().toString();
-  
+
   let testTagName: string;
   let api: GiteaAPI;
   let repoInfo: RepositoryInfo;
@@ -47,9 +57,9 @@ describe('Gitea E2E Tests', () => {
   beforeAll(() => {
     // Prevent action from auto-running when imported
     process.env.SKIP_RUN = 'true';
-    
-    if (!repository || !token) {
-      throw new Error('TEST_GITEA_REPOSITORY and TEST_GITEA_TOKEN required for e2e');
+
+    if (!token) {
+      throw new Error('TEST_GITEA_TOKEN or GITEA_TOKEN required for e2e');
     }
 
     const [owner, repo] = repository.split('/');

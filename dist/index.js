@@ -27082,10 +27082,14 @@ async function run() {
         // Resolve token based on detected platform
         const resolvedToken = (0, config_1.resolveToken)(inputs.token, repoInfo.platform);
         // Determine if we should use local Git or platform API
-        // For github, gitea, and bitbucket platforms, always use the platform API
-        // For generic and git platforms, use local Git CLI
+        // When no repository URL is set, we are targeting the current repo: use local Git so we
+        // rely on the runner's existing git credentials (no token needed for tag create/push).
+        // When repository is set, use platform API for github/gitea/bitbucket; use local Git for generic/git.
         const useLocalGit = await (0, git_1.isGitRepository)(logger);
-        const usePlatformAPI = !useLocalGit || (repoInfo.platform !== 'generic' && repoInfo.platform !== 'git');
+        const noRepositoryUrl = (inputs.repository ?? '').trim() === '';
+        const usePlatformAPI = noRepositoryUrl && useLocalGit
+            ? false
+            : !useLocalGit || (repoInfo.platform !== 'generic' && repoInfo.platform !== 'git');
         if (inputs.verbose) {
             logger.debug('=== REPOSITORY INFO ===');
             logger.debug(`owner: ${repoInfo.owner}`);
@@ -27093,7 +27097,7 @@ async function run() {
             logger.debug(`platform: ${repoInfo.platform}`);
             logger.debug(`url: ${repoInfo.url || 'undefined'}`);
             logger.debug(`useLocalGit: ${useLocalGit}`);
-            logger.debug(`usePlatformAPI: ${usePlatformAPI}`);
+            logger.debug(`usePlatformAPI: ${usePlatformAPI}${noRepositoryUrl && useLocalGit ? ' (no repository URL: using local Git)' : ''}`);
             logger.debug(`token: ${resolvedToken ? '*** (resolved from env)' : 'undefined'}`);
         }
         else {
@@ -27203,6 +27207,11 @@ async function run() {
                 logger.info(`Creating new tag: ${inputs.tagName}`);
                 result = await platformAPI.createTag(tagOptions);
             }
+        }
+        // When we used local Git with no repository URL, platform may still be 'auto'; use explicit
+        // repo-type for output if it was generic or git so outputs match user intent.
+        if (!usePlatformAPI && noRepositoryUrl && (inputs.repoType === 'generic' || inputs.repoType === 'git')) {
+            repoInfo.platform = inputs.repoType;
         }
         // Set outputs
         if (inputs.updateExisting && result.updated !== true) {
