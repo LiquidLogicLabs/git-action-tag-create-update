@@ -16,6 +16,9 @@ pnpm-debug.log*
 .env
 .env.local
 
+# Devcontainer secrets — copy of .devcontainer/.devcontainer-secrets.sample with real values
+.devcontainer-secrets
+
 # IDE and editor files
 .idea/
 *.swp
