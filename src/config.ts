@@ -39,8 +39,23 @@ function getOptionalInput(name: string): string | undefined {
 
 /**
  * Get the required tag name input.
- * Tries 'tagName' first (action.yml canonical name), then 'tag_name' so we work with
- * runners (e.g. Gitea/act) that expose inputs as snake_case env vars (INPUT_TAG_NAME).
+ *
+ * Tries 'tag-name' (the canonical kebab-case name in action.yml) first, then
+ * falls back to 'tag_name' (snake-case).
+ *
+ * Why the fallback still exists:
+ *   Some runners — notably older Gitea/act builds — materialize action inputs
+ *   as env vars using snake_case instead of preserving the hyphen. When that
+ *   happens, `INPUT_TAG-NAME` is never set and `core.getInput('tag-name')`
+ *   comes back empty, even though the workflow passed the input correctly.
+ *   The snake_case fallback keeps the action working in those environments
+ *   until every runner version we target converges on the kebab behavior.
+ *
+ * When to remove:
+ *   - Confirm current Gitea act_runner releases preserve hyphens in INPUT_*
+ *     env vars (spot-check a recent act run). At that point this fallback is
+ *     dead code and can be deleted along with the test case in config.test.ts
+ *     that exercises the 'tag_name' path.
  */
 function getTagNameInput(): string {
   const fromTagName = core.getInput('tag-name');
