@@ -61,7 +61,7 @@ jobs:
     # Run action from committed dist only (no build). Ensures E2E fails if dist is unbundled.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Prepare tag metadata
         id: prep
