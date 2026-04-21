@@ -3813,8 +3813,15 @@ const builtInProviders = [
 function getBuiltInProviders() {
     return [...builtInProviders];
 }
+/**
+ * Provider aliases - these all map to the 'generic' provider
+ * 'git', 'local', and 'generic' are equivalent aliases for local Git CLI operations
+ */
+const GENERIC_ALIASES = ['git', 'local', 'generic'];
 function getProviderById(id, providers = builtInProviders) {
-    return providers.find(provider => provider.id === id);
+    // Normalize aliases to 'generic'
+    const normalizedId = GENERIC_ALIASES.includes(id.toLowerCase()) ? 'generic' : id;
+    return providers.find(provider => provider.id === normalizedId);
 }
 //# sourceMappingURL=index.js.map
 
@@ -26504,6 +26511,9 @@ function getInputs() {
     const tagSha = getOptionalInput('tag-sha');
     const repository = getOptionalInput('repository');
     const token = getOptionalInput('token');
+    if (token) {
+        core.setSecret(token);
+    }
     const force = getBooleanInput('force', false);
     const updateExisting = getBooleanInput('update-existing', false) || force;
     const gpgSign = getBooleanInput('gpg-sign', false);
@@ -27729,7 +27739,7 @@ class GiteaAPI {
         if (options.verbose) {
             this.logger.debug(`Tag message: ${message === undefined ? 'undefined' : `length=${message.length}, value="${message.substring(0, 50).replace(/\n/g, '\\n')}${message.length > 50 ? '...' : ''}"`}`);
             // Additional verbose trace to help diagnose API behaviors in self-hosted Gitea
-            console.log(`[GiteaAPI] createTag debug: force=${options.force}, tag=${tagName}`);
+            this.logger.debug(`[GiteaAPI] createTag debug: force=${options.force}, tag=${tagName}`);
         }
         // Check if tag exists
         const existsOriginal = await this.tagExists(tagName);

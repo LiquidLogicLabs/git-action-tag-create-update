@@ -113,6 +113,9 @@ function getInputs() {
     const tagSha = getOptionalInput('tag-sha');
     const repository = getOptionalInput('repository');
     const token = getOptionalInput('token');
+    if (token) {
+        core.setSecret(token);
+    }
     const force = getBooleanInput('force', false);
     const updateExisting = getBooleanInput('update-existing', false) || force;
     const gpgSign = getBooleanInput('gpg-sign', false);

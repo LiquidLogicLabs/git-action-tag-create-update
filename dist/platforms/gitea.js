@@ -60,7 +60,7 @@ class GiteaAPI {
         if (options.verbose) {
             this.logger.debug(`Tag message: ${message === undefined ? 'undefined' : `length=${message.length}, value="${message.substring(0, 50).replace(/\n/g, '\\n')}${message.length > 50 ? '...' : ''}"`}`);
             // Additional verbose trace to help diagnose API behaviors in self-hosted Gitea
-            console.log(`[GiteaAPI] createTag debug: force=${options.force}, tag=${tagName}`);
+            this.logger.debug(`[GiteaAPI] createTag debug: force=${options.force}, tag=${tagName}`);
         }
         // Check if tag exists
         const existsOriginal = await this.tagExists(tagName);
