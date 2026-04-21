@@ -71,7 +71,7 @@ outputs:
   platform:
     description: 'Detected or specified platform (same as repo_type input or detected value)'
 runs:
-  using: 'node22'
+  using: 'node24'
   main: 'dist/index.js'
 branding:
   icon: 'tag'
