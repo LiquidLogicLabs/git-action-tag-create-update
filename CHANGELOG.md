@@ -1,3 +1,7 @@
+## [2.0.4](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.3...v2.0.4) (2026-07-05)
+
+
+
 # Changelog
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
