@@ -24,7 +24,10 @@
     "lint:act": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/ci.yml -j lint",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "preversion": "npm test",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist coverage *.tsbuildinfo",
+    "preversion": "npm run test:unit",
     "version": "conventional-changelog -p angular -i CHANGELOG.md -s && git add CHANGELOG.md",
     "postversion": "git push --follow-tags origin HEAD",
     "release:patch": "npm version patch -m \"chore(release): %s\"",
@@ -74,6 +77,7 @@
     "husky": "^9.1.7",
     "jest": "^29.7.0",
     "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
     "ts-jest": "^29.1.1",
     "typescript": "^5.9.3"
   }
