@@ -31,8 +31,12 @@ export class GitHubAPI implements PlatformAPI {
   async tagExists(tagName: string): Promise<boolean> {
     try {
       const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
-      await this.client.get(path);
-      return true;
+      const response = await this.client.get<unknown>(path);
+      // GitHub answers this endpoint with every ref whose name STARTS WITH tagName, so a
+      // 200 does not mean the tag exists: asking for `v1` returns `refs/tags/v1.2.3`.
+      // Floating tags (v1, v1.2) are the main use of this action, so match exactly.
+      const found = this.matchesExactRef(response, tagName);
+      return found;
     } catch (error) {
       if (error instanceof Error && error.message.includes('404')) {
         return false;
@@ -116,25 +120,95 @@ export class GitHubAPI implements PlatformAPI {
    * Update a tag (delete and recreate)
    */
   async updateTag(options: TagOptions): Promise<TagResult> {
+    // Delete-then-recreate is destructive: if the recreate fails the repository is left
+    // with no tag at all. Remember where the ref pointed so it can be restored.
+    const previousSha = await this.getExistingRefSha(options.tagName);
+
     await this.deleteTag(options.tagName);
-    return this.createTag(options);
+
+    try {
+      const result = await this.createTag(options);
+      return { ...result, exists: true, created: false, updated: true };
+    } catch (error) {
+      if (previousSha) {
+        try {
+          await this.client.post(`/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`, {
+            ref: `refs/tags/${options.tagName}`,
+            sha: previousSha
+          });
+          this.logger.warning(
+            `Updating tag ${options.tagName} failed; restored it to its previous object ${previousSha}`
+          );
+        } catch (restoreError) {
+          this.logger.error(
+            `Updating tag ${options.tagName} failed AND the previous tag could not be restored. ` +
+              `It pointed at ${previousSha}; recreate it manually. Restore error: ${restoreError}`
+          );
+        }
+      }
+      throw error;
+    }
   }
 
   /**
    * Delete a tag
    */
+  /**
+   * True when the refs response contains a ref for exactly this tag.
+   */
+  private matchesExactRef(response: unknown, tagName: string): boolean {
+    const wanted = `refs/tags/${tagName}`;
+    const refs = Array.isArray(response) ? response : [response];
+    return refs.some(
+      (ref) => typeof ref === 'object' && ref !== null && (ref as { ref?: string }).ref === wanted
+    );
+  }
+
+  /**
+   * SHA the tag ref currently points at, so a failed update can put it back.
+   */
+  private async getExistingRefSha(tagName: string): Promise<string | undefined> {
+    try {
+      const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+      const response = await this.client.get<unknown>(path);
+      const wanted = `refs/tags/${tagName}`;
+      const refs = Array.isArray(response) ? response : [response];
+      const match = refs.find(
+        (ref) => typeof ref === 'object' && ref !== null && (ref as { ref?: string }).ref === wanted
+      ) as { object?: { sha?: string } } | undefined;
+      return match?.object?.sha;
+    } catch (error) {
+      this.logger.debug(`Could not read existing tag ref ${tagName}: ${error}`);
+      return undefined;
+    }
+  }
+
   async deleteTag(tagName: string): Promise<void> {
     this.logger.info(`Deleting GitHub tag: ${tagName}`);
     const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
     try {
       await this.client.delete(path);
     } catch (error) {
-      if (error instanceof Error && error.message.includes('404')) {
+      // Deleting a ref GitHub does not have answers 422 "Reference does not exist",
+      // not 404, so the 404 branch alone never actually tolerated a missing tag. The
+      // 422 check is deliberately narrow: other 422s from this endpoint are real errors.
+      if (error instanceof Error && this.isMissingRefError(error)) {
         this.logger.debug(`Tag ${tagName} does not exist, skipping delete`);
         return;
       }
       throw error;
     }
+  }
+
+  /**
+   * True when an error means "the ref is not there", which is a no-op for a delete.
+   */
+  private isMissingRefError(error: Error): boolean {
+    const msg = error.message.toLowerCase();
+    if (msg.includes('404')) {
+      return true;
+    }
+    return msg.includes('422') && msg.includes('reference does not exist');
   }
 
   /**

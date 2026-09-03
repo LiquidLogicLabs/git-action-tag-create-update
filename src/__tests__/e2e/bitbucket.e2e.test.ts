@@ -42,9 +42,13 @@ describe.skip('Bitbucket E2E Tests', () => {
   let repoInfo: RepositoryInfo;
   let repoUrl: string;
 
+  // Without this, assertions can pass on setOutput/setFailed calls left by an
+  // earlier test in this file rather than by the run under test.
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   beforeAll(() => {
-    // Prevent action from auto-running when imported
-    process.env.SKIP_RUN = 'true';
     
     if (!repository || !token) {
       throw new Error('TEST_BITBUCKET_REPOSITORY and TEST_BITBUCKET_TOKEN required for e2e');

@@ -25,6 +25,11 @@ export declare class GiteaAPI implements PlatformAPI {
      */
     deleteTag(tagName: string): Promise<void>;
     /**
+     * Read a tag's current commit SHA and message, so an update can put it back if the
+     * recreate fails. Returns undefined when the tag is absent or unreadable.
+     */
+    private getExistingTag;
+    /**
      * Get the HEAD SHA from the default branch
      */
     getHeadSha(): Promise<string>;

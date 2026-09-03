@@ -23,7 +23,19 @@ export declare class GitHubAPI implements PlatformAPI {
     /**
      * Delete a tag
      */
+    /**
+     * True when the refs response contains a ref for exactly this tag.
+     */
+    private matchesExactRef;
+    /**
+     * SHA the tag ref currently points at, so a failed update can put it back.
+     */
+    private getExistingRefSha;
     deleteTag(tagName: string): Promise<void>;
+    /**
+     * True when an error means "the ref is not there", which is a no-op for a delete.
+     */
+    private isMissingRefError;
     /**
      * Get the HEAD SHA from the default branch
      */

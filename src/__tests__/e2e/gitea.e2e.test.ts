@@ -20,6 +20,7 @@ import { run } from '../../index';
 import { GiteaAPI } from '../../platforms/gitea';
 import { Logger } from '../../logger';
 import { RepositoryInfo, PlatformConfig } from '../../types';
+import { waitForTag } from './helpers';
 
 jest.mock('@actions/core', () => ({
   getInput: jest.fn(),
@@ -55,8 +56,6 @@ describe('Gitea E2E Tests', () => {
   });
 
   beforeAll(() => {
-    // Prevent action from auto-running when imported
-    process.env.SKIP_RUN = 'true';
 
     if (!token) {
       throw new Error('TEST_GITEA_TOKEN or GITEA_TOKEN required for e2e');
@@ -131,7 +130,7 @@ describe('Gitea E2E Tests', () => {
 
     await run();
 
-    const exists = await api.tagExists(tagName);
+    const exists = await waitForTag(api, tagName);
     expect(exists).toBe(true);
 
     expect(core.setOutput).toHaveBeenCalledWith('tag-name', tagName);

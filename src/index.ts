@@ -248,8 +248,3 @@ export async function run(): Promise<void> {
   }
 }
 
-// Run the action (skip if SKIP_RUN is set, e.g., during testing)
-if (!process.env.SKIP_RUN) {
-  run();
-}
-

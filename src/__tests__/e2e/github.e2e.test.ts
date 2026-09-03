@@ -14,6 +14,7 @@ import { run } from '../../index';
 import { GitHubAPI } from '../../platforms/github';
 import { Logger } from '../../logger';
 import { RepositoryInfo, PlatformConfig } from '../../types';
+import { waitForTag } from './helpers';
 
 // Mock @actions/core to capture outputs
 jest.mock('@actions/core', () => ({
@@ -40,9 +41,13 @@ describe('GitHub E2E Tests', () => {
   let api: GitHubAPI;
   let repoInfo: RepositoryInfo;
 
+  // Without this, assertions can pass on setOutput/setFailed calls left by an
+  // earlier test in this file rather than by the run under test.
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   beforeAll(() => {
-    // Prevent action from auto-running when imported
-    process.env.SKIP_RUN = 'true';
     if (!token) {
       throw new Error('TEST_GITHUB_TOKEN or GITHUB_TOKEN required for e2e');
     }
@@ -116,7 +121,7 @@ describe('GitHub E2E Tests', () => {
     await run();
 
     // Verify tag was created via API
-    const exists = await api.tagExists(tagName);
+    const exists = await waitForTag(api, tagName);
     expect(exists).toBe(true);
 
     // Verify outputs

@@ -40,9 +40,18 @@ export class GiteaAPI implements PlatformAPI {
   async tagExists(tagName: string): Promise<boolean> {
     try {
       const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
-      await this.client.get(path);
-      this.logger.debug(`Gitea tag ${tagName} exists`);
-      return true;
+      const response = await this.client.get<unknown>(path);
+      // Gitea answers this endpoint with every ref whose name STARTS WITH tagName, so a
+      // 200 does not mean the tag exists: asking for `v1` returns `refs/tags/v1.2.3`.
+      // For an action whose main job is floating tags (v1, v1.2) that difference decides
+      // whether the tag gets created at all, so match the ref name exactly.
+      const wanted = `refs/tags/${tagName}`;
+      const refs = Array.isArray(response) ? response : [response];
+      const found = refs.some(
+        (ref) => typeof ref === 'object' && ref !== null && (ref as { ref?: string }).ref === wanted
+      );
+      this.logger.debug(`Gitea tag ${tagName} ${found ? 'exists' : 'does not exist (only prefix matches returned)'}`);
+      return found;
     } catch (error) {
       if (error instanceof Error && error.message.includes('404')) {
         this.logger.debug(`Gitea tag ${tagName} does not exist (404)`);
@@ -182,8 +191,38 @@ export class GiteaAPI implements PlatformAPI {
    * Update a tag (delete and recreate)
    */
   async updateTag(options: TagOptions): Promise<TagResult> {
+    // Updating a tag means deleting it and creating it again, which is destructive: once
+    // the delete actually works, a failed recreate leaves the repository with no tag at
+    // all. Capture where the tag pointed first so the old one can be put back.
+    const previous = await this.getExistingTag(options.tagName);
+
     await this.deleteTag(options.tagName);
-    return this.createTag({ ...options, force: true });
+
+    try {
+      // The tag is gone now, so this takes the plain create path. force stays false to
+      // keep createTag from issuing a second delete for a tag that is already deleted.
+      const result = await this.createTag({ ...options, force: false });
+      return { ...result, exists: true, created: false, updated: true };
+    } catch (error) {
+      if (previous) {
+        try {
+          await this.client.post(`/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags`, {
+            tag_name: options.tagName,
+            target: previous.sha,
+            message: previous.message || `Tag ${options.tagName}`
+          });
+          this.logger.warning(
+            `Updating tag ${options.tagName} failed; restored it to its previous commit ${previous.sha}`
+          );
+        } catch (restoreError) {
+          this.logger.error(
+            `Updating tag ${options.tagName} failed AND the previous tag could not be restored. ` +
+              `It pointed at ${previous.sha}; recreate it manually. Restore error: ${restoreError}`
+          );
+        }
+      }
+      throw error;
+    }
   }
 
   /**
@@ -191,16 +230,35 @@ export class GiteaAPI implements PlatformAPI {
    */
   async deleteTag(tagName: string): Promise<void> {
     this.logger.info(`Deleting Gitea tag: ${tagName}`);
-    // Delete the ref
-    const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+    // Gitea deletes tags through /repos/{owner}/{repo}/tags/{tag}. The git-refs endpoint
+    // (DELETE /git/refs/tags/{tag}) answers 405 and leaves the tag in place; swallowing
+    // that 405 as "already gone" made every update report success while deleting nothing,
+    // so the follow-up create then failed with 409. Only 404 means the tag is absent.
+    const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags/${encodeURIComponent(tagName)}`;
     try {
       await this.client.delete(path);
     } catch (error) {
-      if (error instanceof Error && (error.message.includes('404') || error.message.includes('405'))) {
+      if (error instanceof Error && error.message.includes('404')) {
         this.logger.debug(`Tag ${tagName} does not exist, skipping delete`);
         return;
       }
       throw error;
+    }
+  }
+
+  /**
+   * Read a tag's current commit SHA and message, so an update can put it back if the
+   * recreate fails. Returns undefined when the tag is absent or unreadable.
+   */
+  private async getExistingTag(tagName: string): Promise<{ sha: string; message?: string } | undefined> {
+    try {
+      const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags/${encodeURIComponent(tagName)}`;
+      const tag = await this.client.get<{ message?: string; commit?: { sha?: string } }>(path);
+      const sha = tag?.commit?.sha;
+      return sha ? { sha, message: tag.message } : undefined;
+    } catch (error) {
+      this.logger.debug(`Could not read existing tag ${tagName}: ${error}`);
+      return undefined;
     }
   }
 

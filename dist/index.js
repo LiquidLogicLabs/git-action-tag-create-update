@@ -34136,10 +34136,6 @@ async function run() {
         }
     }
 }
-// Run the action (skip if SKIP_RUN is set, e.g., during testing)
-if (!process.env.SKIP_RUN) {
-    run();
-}
 
 
 /***/ }),
@@ -34596,9 +34592,16 @@ class GiteaAPI {
     async tagExists(tagName) {
         try {
             const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
-            await this.client.get(path);
-            this.logger.debug(`Gitea tag ${tagName} exists`);
-            return true;
+            const response = await this.client.get(path);
+            // Gitea answers this endpoint with every ref whose name STARTS WITH tagName, so a
+            // 200 does not mean the tag exists: asking for `v1` returns `refs/tags/v1.2.3`.
+            // For an action whose main job is floating tags (v1, v1.2) that difference decides
+            // whether the tag gets created at all, so match the ref name exactly.
+            const wanted = `refs/tags/${tagName}`;
+            const refs = Array.isArray(response) ? response : [response];
+            const found = refs.some((ref) => typeof ref === 'object' && ref !== null && ref.ref === wanted);
+            this.logger.debug(`Gitea tag ${tagName} ${found ? 'exists' : 'does not exist (only prefix matches returned)'}`);
+            return found;
         }
         catch (error) {
             if (error instanceof Error && error.message.includes('404')) {
@@ -34731,25 +34734,70 @@ class GiteaAPI {
      * Update a tag (delete and recreate)
      */
     async updateTag(options) {
+        // Updating a tag means deleting it and creating it again, which is destructive: once
+        // the delete actually works, a failed recreate leaves the repository with no tag at
+        // all. Capture where the tag pointed first so the old one can be put back.
+        const previous = await this.getExistingTag(options.tagName);
         await this.deleteTag(options.tagName);
-        return this.createTag({ ...options, force: true });
+        try {
+            // The tag is gone now, so this takes the plain create path. force stays false to
+            // keep createTag from issuing a second delete for a tag that is already deleted.
+            const result = await this.createTag({ ...options, force: false });
+            return { ...result, exists: true, created: false, updated: true };
+        }
+        catch (error) {
+            if (previous) {
+                try {
+                    await this.client.post(`/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags`, {
+                        tag_name: options.tagName,
+                        target: previous.sha,
+                        message: previous.message || `Tag ${options.tagName}`
+                    });
+                    this.logger.warning(`Updating tag ${options.tagName} failed; restored it to its previous commit ${previous.sha}`);
+                }
+                catch (restoreError) {
+                    this.logger.error(`Updating tag ${options.tagName} failed AND the previous tag could not be restored. ` +
+                        `It pointed at ${previous.sha}; recreate it manually. Restore error: ${restoreError}`);
+                }
+            }
+            throw error;
+        }
     }
     /**
      * Delete a tag
      */
     async deleteTag(tagName) {
         this.logger.info(`Deleting Gitea tag: ${tagName}`);
-        // Delete the ref
-        const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+        // Gitea deletes tags through /repos/{owner}/{repo}/tags/{tag}. The git-refs endpoint
+        // (DELETE /git/refs/tags/{tag}) answers 405 and leaves the tag in place; swallowing
+        // that 405 as "already gone" made every update report success while deleting nothing,
+        // so the follow-up create then failed with 409. Only 404 means the tag is absent.
+        const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags/${encodeURIComponent(tagName)}`;
         try {
             await this.client.delete(path);
         }
         catch (error) {
-            if (error instanceof Error && (error.message.includes('404') || error.message.includes('405'))) {
+            if (error instanceof Error && error.message.includes('404')) {
                 this.logger.debug(`Tag ${tagName} does not exist, skipping delete`);
                 return;
             }
             throw error;
+        }
+    }
+    /**
+     * Read a tag's current commit SHA and message, so an update can put it back if the
+     * recreate fails. Returns undefined when the tag is absent or unreadable.
+     */
+    async getExistingTag(tagName) {
+        try {
+            const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags/${encodeURIComponent(tagName)}`;
+            const tag = await this.client.get(path);
+            const sha = tag?.commit?.sha;
+            return sha ? { sha, message: tag.message } : undefined;
+        }
+        catch (error) {
+            this.logger.debug(`Could not read existing tag ${tagName}: ${error}`);
+            return undefined;
         }
     }
     /**
@@ -34881,8 +34929,12 @@ class GitHubAPI {
     async tagExists(tagName) {
         try {
             const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
-            await this.client.get(path);
-            return true;
+            const response = await this.client.get(path);
+            // GitHub answers this endpoint with every ref whose name STARTS WITH tagName, so a
+            // 200 does not mean the tag exists: asking for `v1` returns `refs/tags/v1.2.3`.
+            // Floating tags (v1, v1.2) are the main use of this action, so match exactly.
+            const found = this.matchesExactRef(response, tagName);
+            return found;
         }
         catch (error) {
             if (error instanceof Error && error.message.includes('404')) {
@@ -34959,12 +35011,59 @@ class GitHubAPI {
      * Update a tag (delete and recreate)
      */
     async updateTag(options) {
+        // Delete-then-recreate is destructive: if the recreate fails the repository is left
+        // with no tag at all. Remember where the ref pointed so it can be restored.
+        const previousSha = await this.getExistingRefSha(options.tagName);
         await this.deleteTag(options.tagName);
-        return this.createTag(options);
+        try {
+            const result = await this.createTag(options);
+            return { ...result, exists: true, created: false, updated: true };
+        }
+        catch (error) {
+            if (previousSha) {
+                try {
+                    await this.client.post(`/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`, {
+                        ref: `refs/tags/${options.tagName}`,
+                        sha: previousSha
+                    });
+                    this.logger.warning(`Updating tag ${options.tagName} failed; restored it to its previous object ${previousSha}`);
+                }
+                catch (restoreError) {
+                    this.logger.error(`Updating tag ${options.tagName} failed AND the previous tag could not be restored. ` +
+                        `It pointed at ${previousSha}; recreate it manually. Restore error: ${restoreError}`);
+                }
+            }
+            throw error;
+        }
     }
     /**
      * Delete a tag
      */
+    /**
+     * True when the refs response contains a ref for exactly this tag.
+     */
+    matchesExactRef(response, tagName) {
+        const wanted = `refs/tags/${tagName}`;
+        const refs = Array.isArray(response) ? response : [response];
+        return refs.some((ref) => typeof ref === 'object' && ref !== null && ref.ref === wanted);
+    }
+    /**
+     * SHA the tag ref currently points at, so a failed update can put it back.
+     */
+    async getExistingRefSha(tagName) {
+        try {
+            const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+            const response = await this.client.get(path);
+            const wanted = `refs/tags/${tagName}`;
+            const refs = Array.isArray(response) ? response : [response];
+            const match = refs.find((ref) => typeof ref === 'object' && ref !== null && ref.ref === wanted);
+            return match?.object?.sha;
+        }
+        catch (error) {
+            this.logger.debug(`Could not read existing tag ref ${tagName}: ${error}`);
+            return undefined;
+        }
+    }
     async deleteTag(tagName) {
         this.logger.info(`Deleting GitHub tag: ${tagName}`);
         const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
@@ -34972,12 +35071,25 @@ class GitHubAPI {
             await this.client.delete(path);
         }
         catch (error) {
-            if (error instanceof Error && error.message.includes('404')) {
+            // Deleting a ref GitHub does not have answers 422 "Reference does not exist",
+            // not 404, so the 404 branch alone never actually tolerated a missing tag. The
+            // 422 check is deliberately narrow: other 422s from this endpoint are real errors.
+            if (error instanceof Error && this.isMissingRefError(error)) {
                 this.logger.debug(`Tag ${tagName} does not exist, skipping delete`);
                 return;
             }
             throw error;
         }
+    }
+    /**
+     * True when an error means "the ref is not there", which is a no-op for a delete.
+     */
+    isMissingRefError(error) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes('404')) {
+            return true;
+        }
+        return msg.includes('422') && msg.includes('reference does not exist');
     }
     /**
      * Get the HEAD SHA from the default branch
@@ -35865,13 +35977,29 @@ module.exports = require("util");
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
-/******/ 	
-/******/ 	// startup
-/******/ 	// Load entry module and return exports
-/******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(9407);
-/******/ 	module.exports = __webpack_exports__;
-/******/ 	
+var __webpack_exports__ = {};
+// This entry need to be wrapped in an IIFE because it need to be in strict mode.
+(() => {
+"use strict";
+var exports = __webpack_exports__;
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+/**
+ * Action entry point.
+ *
+ * The bootstrap lives here rather than in index.ts so that importing `run` — which the
+ * e2e suites do — never executes the action as a side effect. The previous arrangement
+ * called run() at the bottom of index.ts behind a SKIP_RUN env guard, but a test can only
+ * set that guard in beforeAll, which runs *after* the import. So run() fired at import
+ * time with unconfigured mocks, failed, and left a stray core.setFailed() call that made
+ * a later assertion fail for reasons unrelated to the test.
+ */
+const index_1 = __nccwpck_require__(9407);
+(0, index_1.run)();
+
+})();
+
+module.exports = __webpack_exports__;
 /******/ })()
 ;
 //# sourceMappingURL=index.js.map

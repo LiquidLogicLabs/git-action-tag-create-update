@@ -32,8 +32,6 @@ describe('Generic Git E2E Tests', () => {
   let originalCwd: string;
 
   beforeAll(() => {
-    // Prevent action from auto-running when imported
-    process.env.SKIP_RUN = 'true';
   });
 
   beforeEach(async () => {
