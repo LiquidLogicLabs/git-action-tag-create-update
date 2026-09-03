@@ -23,18 +23,30 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Node.js
+        # registry-url makes setup-node write the auth .npmrc to RUNNER_TEMP, not the
+        # workspace. Never append a token to a workspace .npmrc: act bind-mounts the
+        # repo directory and never truncates it, which is how a live token reached a
+        # public repo. Auth is supplied per-step via NODE_AUTH_TOKEN.
+        #
+        # scope is REQUIRED even though git-platform-detector is unscoped. Without it
+        # setup-node writes a bare `registry=<gitea>` line, making Gitea the DEFAULT
+        # registry; npm then rewrites every public package's resolved URL to that host
+        # and `npm ci` dies with 404s (e.g. yocto-queue). With scope it writes
+        # `@liquidlogiclabs:registry=<gitea>` instead, leaving the default registry as
+        # npmjs. The private dep is a raw HTTPS tarball, so it needs no scope routing —
+        # only the host-scoped `//git.ravenwolf.org/...:_authToken` line, which npm
+        # applies to a direct tarball fetch on that host.
         uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'npm'
-
-      - name: Configure npm auth for package registry
-        run: echo "//git.ravenwolf.org/api/packages/liquidlogiclabs/npm/:_authToken=${NPM_REGISTRY_TOKEN}" >> .npmrc
-        env:
-          NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
+          registry-url: 'https://git.ravenwolf.org/api/packages/liquidlogiclabs/npm/'
+          scope: '@liquidlogiclabs'
 
       - name: Install dependencies
         run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
 
       - name: Verify Jest is installed
         run: npx jest --version
