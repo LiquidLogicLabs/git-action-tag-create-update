@@ -19,7 +19,10 @@ jobs:
       TEST_TAG_PREFIX: ${{ matrix.tagPrefix || 'test-' }}
       # GitHub
       TEST_GITHUB_REPOSITORY: ${{ matrix.githubRepo || secrets.TEST_GITHUB_REPOSITORY || github.repository }}
-      TEST_GITHUB_TOKEN: ${{ secrets.TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN || '' }}
+      # No fallback to secrets.GITHUB_TOKEN: it is never empty, so it made the
+      # "token missing -> skip" guard below unreachable, and it cannot write to the
+      # external test repository, so the job failed with 401 instead of skipping.
+      TEST_GITHUB_TOKEN: ${{ secrets.TEST_GITHUB_TOKEN || '' }}
       # Gitea
       TEST_GITEA_REPOSITORY: ${{ matrix.giteaRepo || secrets.TEST_GITEA_REPOSITORY || '' }}
       TEST_GITEA_TOKEN: ${{ secrets.TEST_GITEA_TOKEN || '' }}
