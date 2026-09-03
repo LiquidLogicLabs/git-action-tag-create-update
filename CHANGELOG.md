@@ -1,3 +1,12 @@
+## [2.0.6](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.5...v2.0.6) (2026-09-03)
+
+
+### Bug Fixes
+
+* **gitea:** delete tags through the endpoint that actually deletes them ([920aae7](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/920aae7bbce52dcc523412f023e03dd97f63046d))
+
+
+
 ## [2.0.5](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.4...v2.0.5) (2026-09-03)
 
 
