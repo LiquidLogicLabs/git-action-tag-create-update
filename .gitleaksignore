@@ -1,0 +1,15 @@
+# Reviewed historical findings only. Each was confirmed to be either the
+# revoked token or a verified false positive.
+# NOTE: the dist/index.js doc-example false positive is allowlisted BY PATH in
+# .gitleaks.toml, not fingerprinted here - fingerprints shift on every rebuild.
+# Gitea token committed in early 2026 and REVOKED 2026-09-02, or a verified
+# false positive. History is deliberately not rewritten: these commits are
+# ancestors of released tags that consumers pin to.
+# A NEW finding must fail CI. Do not add to this file without review.
+303796ec29bd9081307e344772154da22e82fcfd:.npmrc:generic-api-key:4
+303796ec29bd9081307e344772154da22e82fcfd:.npmrc:generic-api-key:5
+303796ec29bd9081307e344772154da22e82fcfd:.npmrc:generic-api-key:6
+b014a85663a3458a395bf30565d651c926878079:.npmrc:generic-api-key:4
+b014a85663a3458a395bf30565d651c926878079:.npmrc:generic-api-key:5
+b014a85663a3458a395bf30565d651c926878079:.npmrc:generic-api-key:6
+ebfeb7ac854be7179e224f1b506456a42ef8f093:.npmrc:generic-api-key:2
