@@ -4,7 +4,7 @@ import { Logger } from './logger';
 import { getRepositoryInfo } from './repo-utils';
 import { isGitRepository, getHeadSha, createTag, pushTag } from './git';
 import { createPlatformAPI } from './platforms/platform-factory';
-import { PlatformAPI, TagOptions, RepoType } from './types';
+import { TagOptions } from './types';
 
 /**
  * Main action function
