@@ -1,3 +1,13 @@
+## [2.0.5](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.4...v2.0.5) (2026-09-03)
+
+
+### Bug Fixes
+
+* **lint:** quote eslint glob so all of src/ is linted ([8f0843d](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/8f0843d58e168a7ee46320e82789290cdc062289))
+* **lint:** resolve errors surfaced by the widened glob ([0874441](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/0874441c2feeaa077cf0359e2d51577f57bbcb78))
+
+
+
 ## [2.0.4](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.3...v2.0.4) (2026-07-05)
 
 
