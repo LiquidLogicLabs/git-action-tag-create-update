@@ -1,3 +1,12 @@
+## [2.0.8](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.7...v2.0.8) (2026-09-04)
+
+
+### Bug Fixes
+
+* encode every value interpolated into an API URL path ([87475e6](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/87475e6d7bd5deb5aa5afb371f8b7cad8d9963c7))
+
+
+
 ## [2.0.7](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.6...v2.0.7) (2026-09-04)
 
 
