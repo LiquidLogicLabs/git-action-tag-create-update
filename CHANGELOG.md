@@ -1,3 +1,7 @@
+## [2.0.9](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.8...v2.0.9) (2026-09-04)
+
+
+
 ## [2.0.8](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.7...v2.0.8) (2026-09-04)
 
 
