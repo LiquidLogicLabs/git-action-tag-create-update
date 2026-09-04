@@ -5,6 +5,7 @@ exports.detectFromUrlByHostname = detectFromUrlByHostname;
 exports.detectFromUrl = detectFromUrl;
 exports.determineBaseUrl = determineBaseUrl;
 const http_client_1 = require("./http-client");
+const repo_utils_1 = require("../repo-utils");
 /**
  * GitHub API client
  */
@@ -28,7 +29,7 @@ class GitHubAPI {
      */
     async tagExists(tagName) {
         try {
-            const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+            const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
             const response = await this.client.get(path);
             // GitHub answers this endpoint with every ref whose name STARTS WITH tagName, so a
             // 200 does not mean the tag exists: asking for `v1` returns `refs/tags/v1.2.3`.
@@ -72,10 +73,10 @@ class GitHubAPI {
             object: sha,
             type: 'commit'
         };
-        const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/tags`;
+        const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/tags`;
         const tagResponse = await this.client.post(path, tagObject);
         // Create ref pointing to the tag
-        const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`;
+        const refPath = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs`;
         try {
             await this.client.post(refPath, {
                 ref: `refs/tags/${tagName}`,
@@ -122,7 +123,7 @@ class GitHubAPI {
         catch (error) {
             if (previousSha) {
                 try {
-                    await this.client.post(`/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`, {
+                    await this.client.post(`/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs`, {
                         ref: `refs/tags/${options.tagName}`,
                         sha: previousSha
                     });
@@ -152,7 +153,7 @@ class GitHubAPI {
      */
     async getExistingRefSha(tagName) {
         try {
-            const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+            const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
             const response = await this.client.get(path);
             const wanted = `refs/tags/${tagName}`;
             const refs = Array.isArray(response) ? response : [response];
@@ -166,7 +167,7 @@ class GitHubAPI {
     }
     async deleteTag(tagName) {
         this.logger.info(`Deleting GitHub tag: ${tagName}`);
-        const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+        const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
         try {
             await this.client.delete(path);
         }
@@ -196,11 +197,11 @@ class GitHubAPI {
      */
     async getHeadSha() {
         // Get repository info to find default branch
-        const repoPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}`;
+        const repoPath = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}`;
         const repoInfo = await this.client.get(repoPath);
         const defaultBranch = repoInfo.default_branch || 'main';
         // Get the HEAD SHA from the default branch
-        const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/ref/heads/${defaultBranch}`;
+        const refPath = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/ref/heads/${(0, repo_utils_1.safeSegment)(defaultBranch, 'default branch')}`;
         const refInfo = await this.client.get(refPath);
         return refInfo.object.sha;
     }

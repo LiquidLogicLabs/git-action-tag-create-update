@@ -1,6 +1,7 @@
 import { PlatformAPI, TagOptions, TagResult, RepositoryInfo, PlatformConfig, RepoType } from '../types';
 import { Logger } from '../logger';
 import { HttpClient } from './http-client';
+import { safeSegment } from '../repo-utils';
 
 /**
  * GitHub API client
@@ -30,7 +31,7 @@ export class GitHubAPI implements PlatformAPI {
    */
   async tagExists(tagName: string): Promise<boolean> {
     try {
-      const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+      const path = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/git/refs/tags/${safeSegment(tagName, 'tag name')}`;
       const response = await this.client.get<unknown>(path);
       // GitHub answers this endpoint with every ref whose name STARTS WITH tagName, so a
       // 200 does not mean the tag exists: asking for `v1` returns `refs/tags/v1.2.3`.
@@ -79,11 +80,11 @@ export class GitHubAPI implements PlatformAPI {
       type: 'commit'
     };
 
-    const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/tags`;
+    const path = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/git/tags`;
     const tagResponse = await this.client.post<{ sha: string }>(path, tagObject);
 
     // Create ref pointing to the tag
-    const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`;
+    const refPath = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/git/refs`;
     try {
       await this.client.post(refPath, {
         ref: `refs/tags/${tagName}`,
@@ -132,7 +133,7 @@ export class GitHubAPI implements PlatformAPI {
     } catch (error) {
       if (previousSha) {
         try {
-          await this.client.post(`/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`, {
+          await this.client.post(`/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/git/refs`, {
             ref: `refs/tags/${options.tagName}`,
             sha: previousSha
           });
@@ -169,7 +170,7 @@ export class GitHubAPI implements PlatformAPI {
    */
   private async getExistingRefSha(tagName: string): Promise<string | undefined> {
     try {
-      const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+      const path = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/git/refs/tags/${safeSegment(tagName, 'tag name')}`;
       const response = await this.client.get<unknown>(path);
       const wanted = `refs/tags/${tagName}`;
       const refs = Array.isArray(response) ? response : [response];
@@ -185,7 +186,7 @@ export class GitHubAPI implements PlatformAPI {
 
   async deleteTag(tagName: string): Promise<void> {
     this.logger.info(`Deleting GitHub tag: ${tagName}`);
-    const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+    const path = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/git/refs/tags/${safeSegment(tagName, 'tag name')}`;
     try {
       await this.client.delete(path);
     } catch (error) {
@@ -216,12 +217,12 @@ export class GitHubAPI implements PlatformAPI {
    */
   async getHeadSha(): Promise<string> {
     // Get repository info to find default branch
-    const repoPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}`;
+    const repoPath = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}`;
     const repoInfo = await this.client.get<{ default_branch: string }>(repoPath);
     const defaultBranch = repoInfo.default_branch || 'main';
 
     // Get the HEAD SHA from the default branch
-    const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/ref/heads/${defaultBranch}`;
+    const refPath = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/git/ref/heads/${safeSegment(defaultBranch, 'default branch')}`;
     const refInfo = await this.client.get<{ object: { sha: string } }>(refPath);
     return refInfo.object.sha;
   }

@@ -5,6 +5,7 @@ exports.detectFromUrlByHostname = detectFromUrlByHostname;
 exports.detectFromUrl = detectFromUrl;
 exports.determineBaseUrl = determineBaseUrl;
 const http_client_1 = require("./http-client");
+const repo_utils_1 = require("../repo-utils");
 /**
  * Bitbucket API client
  */
@@ -31,7 +32,7 @@ class BitbucketAPI {
      */
     async tagExists(tagName) {
         try {
-            const path = `/repositories/${this.repoInfo.owner}/${this.repoInfo.repo}/refs/tags/${tagName}`;
+            const path = `/repositories/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
             await this.client.get(path);
             return true;
         }
@@ -65,7 +66,7 @@ class BitbucketAPI {
             await this.deleteTag(tagName);
         }
         // Create tag via Bitbucket API
-        const path = `/repositories/${this.repoInfo.owner}/${this.repoInfo.repo}/refs/tags`;
+        const path = `/repositories/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/refs/tags`;
         const tagData = {
             name: tagName,
             target: {
@@ -110,7 +111,7 @@ class BitbucketAPI {
      */
     async deleteTag(tagName) {
         this.logger.info(`Deleting Bitbucket tag: ${tagName}`);
-        const path = `/repositories/${this.repoInfo.owner}/${this.repoInfo.repo}/refs/tags/${tagName}`;
+        const path = `/repositories/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
         try {
             await this.client.delete(path);
         }
@@ -127,11 +128,11 @@ class BitbucketAPI {
      */
     async getHeadSha() {
         // Get repository info to find default branch
-        const repoPath = `/repositories/${this.repoInfo.owner}/${this.repoInfo.repo}`;
+        const repoPath = `/repositories/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}`;
         const repoInfo = await this.client.get(repoPath);
         const defaultBranch = repoInfo.mainbranch?.name || 'main';
         // Get the HEAD SHA from the default branch
-        const refPath = `/repositories/${this.repoInfo.owner}/${this.repoInfo.repo}/refs/branches/${defaultBranch}`;
+        const refPath = `/repositories/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/refs/branches/${(0, repo_utils_1.safeSegment)(defaultBranch, 'default branch')}`;
         const refInfo = await this.client.get(refPath);
         return refInfo.target.hash;
     }

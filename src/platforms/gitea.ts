@@ -1,6 +1,7 @@
 import { PlatformAPI, TagOptions, TagResult, RepositoryInfo, PlatformConfig, RepoType } from '../types';
 import { Logger } from '../logger';
 import { HttpClient } from './http-client';
+import { safeSegment } from '../repo-utils';
 
 function normalizeGiteaBaseUrl(baseUrl: string): string {
   const trimmed = baseUrl.replace(/\/+$/, '');
@@ -39,7 +40,7 @@ export class GiteaAPI implements PlatformAPI {
    */
   async tagExists(tagName: string): Promise<boolean> {
     try {
-      const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+      const path = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/git/refs/tags/${safeSegment(tagName, 'tag name')}`;
       const response = await this.client.get<unknown>(path);
       // Gitea answers this endpoint with every ref whose name STARTS WITH tagName, so a
       // 200 does not mean the tag exists: asking for `v1` returns `refs/tags/v1.2.3`.
@@ -98,7 +99,7 @@ export class GiteaAPI implements PlatformAPI {
     }
 
     // Attempt primary Gitea tag creation endpoint
-    const createTagPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags`;
+    const createTagPath = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/tags`;
     const tagData = {
       tag_name: tagName,
       target: sha,
@@ -107,7 +108,7 @@ export class GiteaAPI implements PlatformAPI {
 
     const tryCreateViaRefs = async (): Promise<void> => {
       // Fallback: create a lightweight tag ref (not supported on all Gitea versions)
-      const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`;
+      const refPath = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/git/refs`;
       const payload = {
         ref: `refs/tags/${tagName}`,
         sha
@@ -206,7 +207,7 @@ export class GiteaAPI implements PlatformAPI {
     } catch (error) {
       if (previous) {
         try {
-          await this.client.post(`/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags`, {
+          await this.client.post(`/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/tags`, {
             tag_name: options.tagName,
             target: previous.sha,
             message: previous.message || `Tag ${options.tagName}`
@@ -234,7 +235,7 @@ export class GiteaAPI implements PlatformAPI {
     // (DELETE /git/refs/tags/{tag}) answers 405 and leaves the tag in place; swallowing
     // that 405 as "already gone" made every update report success while deleting nothing,
     // so the follow-up create then failed with 409. Only 404 means the tag is absent.
-    const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags/${encodeURIComponent(tagName)}`;
+    const path = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/tags/${safeSegment(tagName, 'tag name')}`;
     try {
       await this.client.delete(path);
     } catch (error) {
@@ -252,7 +253,7 @@ export class GiteaAPI implements PlatformAPI {
    */
   private async getExistingTag(tagName: string): Promise<{ sha: string; message?: string } | undefined> {
     try {
-      const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags/${encodeURIComponent(tagName)}`;
+      const path = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/tags/${safeSegment(tagName, 'tag name')}`;
       const tag = await this.client.get<{ message?: string; commit?: { sha?: string } }>(path);
       const sha = tag?.commit?.sha;
       return sha ? { sha, message: tag.message } : undefined;
@@ -267,13 +268,13 @@ export class GiteaAPI implements PlatformAPI {
    */
   async getHeadSha(): Promise<string> {
     // Get repository info to find default branch
-    const repoPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}`;
+    const repoPath = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}`;
     const repoInfo = await this.client.get<{ default_branch: string }>(repoPath);
     const defaultBranch = repoInfo.default_branch || 'main';
 
     // Get the HEAD SHA from the default branch
     // Gitea API returns an array for /git/refs/heads/ endpoint
-    const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/heads/${defaultBranch}`;
+    const refPath = `/repos/${safeSegment(this.repoInfo.owner, 'repository owner')}/${safeSegment(this.repoInfo.repo, 'repository name')}/git/refs/heads/${safeSegment(defaultBranch, 'default branch')}`;
     const refInfoArray = await this.client.get<Array<{ object: { sha: string } }>>(refPath);
     if (refInfoArray.length === 0) {
       throw new Error(`No ref found for branch ${defaultBranch}`);

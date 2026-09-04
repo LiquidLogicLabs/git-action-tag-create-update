@@ -34306,6 +34306,7 @@ exports.detectFromUrlByHostname = detectFromUrlByHostname;
 exports.detectFromUrl = detectFromUrl;
 exports.determineBaseUrl = determineBaseUrl;
 const http_client_1 = __nccwpck_require__(3696);
+const repo_utils_1 = __nccwpck_require__(4595);
 /**
  * Bitbucket API client
  */
@@ -34332,7 +34333,7 @@ class BitbucketAPI {
      */
     async tagExists(tagName) {
         try {
-            const path = `/repositories/${this.repoInfo.owner}/${this.repoInfo.repo}/refs/tags/${tagName}`;
+            const path = `/repositories/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
             await this.client.get(path);
             return true;
         }
@@ -34366,7 +34367,7 @@ class BitbucketAPI {
             await this.deleteTag(tagName);
         }
         // Create tag via Bitbucket API
-        const path = `/repositories/${this.repoInfo.owner}/${this.repoInfo.repo}/refs/tags`;
+        const path = `/repositories/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/refs/tags`;
         const tagData = {
             name: tagName,
             target: {
@@ -34411,7 +34412,7 @@ class BitbucketAPI {
      */
     async deleteTag(tagName) {
         this.logger.info(`Deleting Bitbucket tag: ${tagName}`);
-        const path = `/repositories/${this.repoInfo.owner}/${this.repoInfo.repo}/refs/tags/${tagName}`;
+        const path = `/repositories/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
         try {
             await this.client.delete(path);
         }
@@ -34428,11 +34429,11 @@ class BitbucketAPI {
      */
     async getHeadSha() {
         // Get repository info to find default branch
-        const repoPath = `/repositories/${this.repoInfo.owner}/${this.repoInfo.repo}`;
+        const repoPath = `/repositories/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}`;
         const repoInfo = await this.client.get(repoPath);
         const defaultBranch = repoInfo.mainbranch?.name || 'main';
         // Get the HEAD SHA from the default branch
-        const refPath = `/repositories/${this.repoInfo.owner}/${this.repoInfo.repo}/refs/branches/${defaultBranch}`;
+        const refPath = `/repositories/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/refs/branches/${(0, repo_utils_1.safeSegment)(defaultBranch, 'default branch')}`;
         const refInfo = await this.client.get(refPath);
         return refInfo.target.hash;
     }
@@ -34613,6 +34614,7 @@ exports.detectFromUrlByHostname = detectFromUrlByHostname;
 exports.determineBaseUrl = determineBaseUrl;
 exports.detectFromUrl = detectFromUrl;
 const http_client_1 = __nccwpck_require__(3696);
+const repo_utils_1 = __nccwpck_require__(4595);
 function normalizeGiteaBaseUrl(baseUrl) {
     const trimmed = baseUrl.replace(/\/+$/, '');
     // If already points to an api path, keep it. Otherwise, append /api/v1.
@@ -34644,7 +34646,7 @@ class GiteaAPI {
      */
     async tagExists(tagName) {
         try {
-            const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+            const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
             const response = await this.client.get(path);
             // Gitea answers this endpoint with every ref whose name STARTS WITH tagName, so a
             // 200 does not mean the tag exists: asking for `v1` returns `refs/tags/v1.2.3`.
@@ -34695,7 +34697,7 @@ class GiteaAPI {
             await this.deleteTag(tagName);
         }
         // Attempt primary Gitea tag creation endpoint
-        const createTagPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags`;
+        const createTagPath = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/tags`;
         const tagData = {
             tag_name: tagName,
             target: sha,
@@ -34703,7 +34705,7 @@ class GiteaAPI {
         };
         const tryCreateViaRefs = async () => {
             // Fallback: create a lightweight tag ref (not supported on all Gitea versions)
-            const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`;
+            const refPath = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs`;
             const payload = {
                 ref: `refs/tags/${tagName}`,
                 sha
@@ -34801,7 +34803,7 @@ class GiteaAPI {
         catch (error) {
             if (previous) {
                 try {
-                    await this.client.post(`/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags`, {
+                    await this.client.post(`/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/tags`, {
                         tag_name: options.tagName,
                         target: previous.sha,
                         message: previous.message || `Tag ${options.tagName}`
@@ -34825,7 +34827,7 @@ class GiteaAPI {
         // (DELETE /git/refs/tags/{tag}) answers 405 and leaves the tag in place; swallowing
         // that 405 as "already gone" made every update report success while deleting nothing,
         // so the follow-up create then failed with 409. Only 404 means the tag is absent.
-        const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags/${encodeURIComponent(tagName)}`;
+        const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
         try {
             await this.client.delete(path);
         }
@@ -34843,7 +34845,7 @@ class GiteaAPI {
      */
     async getExistingTag(tagName) {
         try {
-            const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/tags/${encodeURIComponent(tagName)}`;
+            const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
             const tag = await this.client.get(path);
             const sha = tag?.commit?.sha;
             return sha ? { sha, message: tag.message } : undefined;
@@ -34858,12 +34860,12 @@ class GiteaAPI {
      */
     async getHeadSha() {
         // Get repository info to find default branch
-        const repoPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}`;
+        const repoPath = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}`;
         const repoInfo = await this.client.get(repoPath);
         const defaultBranch = repoInfo.default_branch || 'main';
         // Get the HEAD SHA from the default branch
         // Gitea API returns an array for /git/refs/heads/ endpoint
-        const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/heads/${defaultBranch}`;
+        const refPath = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs/heads/${(0, repo_utils_1.safeSegment)(defaultBranch, 'default branch')}`;
         const refInfoArray = await this.client.get(refPath);
         if (refInfoArray.length === 0) {
             throw new Error(`No ref found for branch ${defaultBranch}`);
@@ -34958,6 +34960,7 @@ exports.detectFromUrlByHostname = detectFromUrlByHostname;
 exports.detectFromUrl = detectFromUrl;
 exports.determineBaseUrl = determineBaseUrl;
 const http_client_1 = __nccwpck_require__(3696);
+const repo_utils_1 = __nccwpck_require__(4595);
 /**
  * GitHub API client
  */
@@ -34981,7 +34984,7 @@ class GitHubAPI {
      */
     async tagExists(tagName) {
         try {
-            const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+            const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
             const response = await this.client.get(path);
             // GitHub answers this endpoint with every ref whose name STARTS WITH tagName, so a
             // 200 does not mean the tag exists: asking for `v1` returns `refs/tags/v1.2.3`.
@@ -35025,10 +35028,10 @@ class GitHubAPI {
             object: sha,
             type: 'commit'
         };
-        const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/tags`;
+        const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/tags`;
         const tagResponse = await this.client.post(path, tagObject);
         // Create ref pointing to the tag
-        const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`;
+        const refPath = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs`;
         try {
             await this.client.post(refPath, {
                 ref: `refs/tags/${tagName}`,
@@ -35075,7 +35078,7 @@ class GitHubAPI {
         catch (error) {
             if (previousSha) {
                 try {
-                    await this.client.post(`/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs`, {
+                    await this.client.post(`/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs`, {
                         ref: `refs/tags/${options.tagName}`,
                         sha: previousSha
                     });
@@ -35105,7 +35108,7 @@ class GitHubAPI {
      */
     async getExistingRefSha(tagName) {
         try {
-            const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+            const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
             const response = await this.client.get(path);
             const wanted = `refs/tags/${tagName}`;
             const refs = Array.isArray(response) ? response : [response];
@@ -35119,7 +35122,7 @@ class GitHubAPI {
     }
     async deleteTag(tagName) {
         this.logger.info(`Deleting GitHub tag: ${tagName}`);
-        const path = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/refs/tags/${tagName}`;
+        const path = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/refs/tags/${(0, repo_utils_1.safeSegment)(tagName, 'tag name')}`;
         try {
             await this.client.delete(path);
         }
@@ -35149,11 +35152,11 @@ class GitHubAPI {
      */
     async getHeadSha() {
         // Get repository info to find default branch
-        const repoPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}`;
+        const repoPath = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}`;
         const repoInfo = await this.client.get(repoPath);
         const defaultBranch = repoInfo.default_branch || 'main';
         // Get the HEAD SHA from the default branch
-        const refPath = `/repos/${this.repoInfo.owner}/${this.repoInfo.repo}/git/ref/heads/${defaultBranch}`;
+        const refPath = `/repos/${(0, repo_utils_1.safeSegment)(this.repoInfo.owner, 'repository owner')}/${(0, repo_utils_1.safeSegment)(this.repoInfo.repo, 'repository name')}/git/ref/heads/${(0, repo_utils_1.safeSegment)(defaultBranch, 'default branch')}`;
         const refInfo = await this.client.get(refPath);
         return refInfo.object.sha;
     }
@@ -35561,6 +35564,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseRepository = parseRepository;
 exports.getLocalRepositoryInfo = getLocalRepositoryInfo;
 exports.getRepositoryInfo = getRepositoryInfo;
+exports.safeSegment = safeSegment;
 const exec = __importStar(__nccwpck_require__(5236));
 const io = __importStar(__nccwpck_require__(4994));
 /**
@@ -35715,6 +35719,29 @@ async function getRepositoryInfo(repository, repoType, logger) {
     // Platform detection is handled by the factory, not here
     logger.info(`Repository: ${repoInfo.owner}/${repoInfo.repo}`);
     return repoInfo;
+}
+/**
+ * Encode a value for use as a single path segment in an API URL.
+ *
+ * Interpolating a value straight into a path lets it redirect the request. Verified against
+ * WHATWG URL resolution, which is what fetch applies:
+ *
+ *   tag "../../../user"  ->  /repos/o/r/git/refs/tags/../../../user  =>  /repos/o/user
+ *   tag ".."             ->  /repos/o/r/git/refs/tags/..             =>  /repos/o/r/git/refs/
+ *
+ * This action issues DELETE against these paths (deleteTag on every platform client), so a
+ * redirected request acts on the refs collection rather than on one tag.
+ *
+ * encodeURIComponent is necessary but not sufficient: it does not encode dots, so a bare
+ * "." or ".." survives it unchanged and is then removed by dot-segment normalisation. Those
+ * two are refused outright rather than encoded, because no legitimate tag, owner, repo or
+ * branch is named "." or "..".
+ */
+function safeSegment(value, label) {
+    if (value === '.' || value === '..') {
+        throw new Error(`Refusing to use ${JSON.stringify(value)} as a ${label}: it would redirect the request to a different endpoint.`);
+    }
+    return encodeURIComponent(value);
 }
 
 
