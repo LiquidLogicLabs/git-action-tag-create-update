@@ -2,6 +2,12 @@ name: Test
 
 on:
   workflow_call:  # Called by CI workflow
+    secrets:
+      NPM_REGISTRY_TOKEN:
+        # Declared so a caller can pass it explicitly. Without this declaration GitHub
+        # rejects `secrets: {NPM_REGISTRY_TOKEN: ...}` at parse time, which is why
+        # `secrets: inherit` was used -- it works without a declaration.
+        required: false
   workflow_dispatch:  # Allow manual triggering
 
 concurrency:
@@ -20,7 +26,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          # No step in this job pushes; the credential is not needed.
+          persist-credentials: false
 
       - name: Setup Node.js
         # registry-url makes setup-node write the auth .npmrc to RUNNER_TEMP, not the
@@ -36,10 +45,12 @@ jobs:
         # npmjs. The private dep is a raw HTTPS tarball, so it needs no scope routing —
         # only the host-scoped `//git.ravenwolf.org/...:_authToken` line, which npm
         # applies to a direct tarball fetch on that host.
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
-          cache: 'npm'
+          # setup-node enables package-manager caching by default; a cache
+          # restored from a PR run must not reach a publishing job.
+          package-manager-cache: false
           registry-url: 'https://git.ravenwolf.org/api/packages/liquidlogiclabs/npm/'
           scope: '@liquidlogiclabs'
 

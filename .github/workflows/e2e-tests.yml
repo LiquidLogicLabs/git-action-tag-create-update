@@ -9,7 +9,15 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write  # needed for creating test tags
+  # contents: read, not write. The github/gitea matrix cells create tags in the separate
+  # TEST repositories over the API with TEST_GITHUB_TOKEN / TEST_GITEA_TOKEN, and the
+  # git/generic cells run with push-tag: false, so nothing here writes to THIS repository.
+  #
+  # It also cannot be `write` any more: release.yml now runs on a `contents: read` floor
+  # (R8), and a called reusable workflow may not request more than its caller was granted
+  # -- leaving `write` here makes the Release run fail at startup in 1s with no logs,
+  # which is what happened to git-action-release v2.0.5.
+  contents: read
 
 jobs:
   e2e:
@@ -27,10 +35,14 @@ jobs:
       TEST_GITEA_REPOSITORY: ${{ matrix.giteaRepo || secrets.TEST_GITEA_REPOSITORY || '' }}
       TEST_GITEA_TOKEN: ${{ secrets.TEST_GITEA_TOKEN || '' }}
       TEST_GITEA_BASE_URL: ${{ matrix.giteaBaseUrl || '' }}
-      # Bitbucket
-      TEST_BITBUCKET_REPOSITORY: ${{ matrix.bitbucketRepo || secrets.TEST_BITBUCKET_REPOSITORY || '' }}
+      # Bitbucket. The matrix cell is commented out below, so matrix.bitbucketRepo and
+      # matrix.bitbucketBaseUrl do not exist -- referencing them yielded '' at runtime but
+      # is an undefined-property error to actionlint, which only started reading this file
+      # when the lint step stopped being pinned to ci.yml. Restore the `matrix.bitbucket*
+      # ||` halves together with the matrix cell.
+      TEST_BITBUCKET_REPOSITORY: ${{ secrets.TEST_BITBUCKET_REPOSITORY || '' }}
       TEST_BITBUCKET_TOKEN: ${{ secrets.TEST_BITBUCKET_TOKEN || '' }}
-      TEST_BITBUCKET_BASE_URL: ${{ matrix.bitbucketBaseUrl || '' }}
+      TEST_BITBUCKET_BASE_URL: ''
     strategy:
       fail-fast: false
       matrix:
@@ -59,21 +71,31 @@ jobs:
     environment: TEST
 
     permissions:
-      contents: write
+      contents: read
       actions: read
     # Run action from committed dist only (no build). Ensures E2E fails if dist is unbundled.
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          # No step in this job pushes to this repository: the github/gitea cells write
+          # to the separate TEST repositories with their own tokens, and the git/generic
+          # cells create a local tag with push-tag: false.
+          persist-credentials: false
 
       - name: Prepare tag metadata
         id: prep
+        env:
+          Z_MATRIX_TAGPREFIX_TEST: ${{ matrix.tagPrefix || 'test-' }}
+          Z_MATRIX_PLATFORM: ${{ matrix.platform }}
         run: |
-          TAG_NAME="${{ matrix.tagPrefix || 'test-' }}$(date +%s)-${GITHUB_SHA:0:7}-${{ matrix.platform }}"
+          TAG_NAME="${Z_MATRIX_TAGPREFIX_TEST}$(date +%s)-${GITHUB_SHA:0:7}-${Z_MATRIX_PLATFORM}"
           echo "tag-name=$TAG_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Resolve platform inputs
         id: resolve
+        env:
+          Z_MATRIX_PLATFORM: ${{ matrix.platform }}
         run: |
           set -euo pipefail
           run="true"
@@ -81,7 +103,7 @@ jobs:
           token=""
           base_url=""
           push_tag="true"
-          case "${{ matrix.platform }}" in
+          case "${Z_MATRIX_PLATFORM}" in
             github)
               repo="${TEST_GITHUB_REPOSITORY}"
               token="${TEST_GITHUB_TOKEN}"
@@ -116,11 +138,13 @@ jobs:
               run="true"
               ;;
           esac
-          echo "run=$run" >> "$GITHUB_OUTPUT"
-          echo "repo=$repo" >> "$GITHUB_OUTPUT"
-          echo "token=$token" >> "$GITHUB_OUTPUT"
-          echo "base_url=$base_url" >> "$GITHUB_OUTPUT"
-          echo "push_tag=$push_tag" >> "$GITHUB_OUTPUT"
+          {
+            echo "run=$run"
+            echo "repo=$repo"
+            echo "token=$token"
+            echo "base_url=$base_url"
+            echo "push_tag=$push_tag"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Configure Git user (for git/generic platform)
         if: steps.resolve.outputs.run == 'true' && (matrix.platform == 'git' || matrix.platform == 'generic')
@@ -132,7 +156,7 @@ jobs:
 
       - name: Run E2E via action (${{ matrix.platform }})
         if: steps.resolve.outputs.run == 'true'
-        uses: ./
+        uses: ./  # zizmor: ignore[self-repository] — local ACTION reference under test, not a reusable-workflow call; $/ does not apply
         with:
           tag-name: ${{ steps.prep.outputs.tag-name }}
           tag-message: E2E ${{ matrix.platform }} tag ${{ steps.prep.outputs.tag-name }}

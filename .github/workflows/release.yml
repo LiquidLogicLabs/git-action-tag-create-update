@@ -16,51 +16,89 @@ concurrency:
   group: ${{ github.workflow || 'Release' }}-${{ github.event.inputs.tag || github.ref_name || github.ref || github.run_id }}
   cancel-in-progress: false
 
+# Floor for every job in this file. Deleting this block would NOT narrow anything -- jobs
+# would fall back to the repository default, which may be write-all.
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
   actions: read
 
 jobs:
   ci:
-    uses: ./.github/workflows/ci.yml
+    # `$/` is GitHub syntax from July 2026 and act 0.2.89 rejects it outright ("must start
+    # with './' if it's a local workflow"), which would break every `npm run test:act:*`
+    # script here. The marker must sit ON the uses: line -- a comment above a JOB-level
+    # uses: is not honoured, unlike the step-level case.
+    uses: ./.github/workflows/ci.yml  # zizmor: ignore[self-repository]
     # CI runs: lint -> unit tests + integration tests
     # When manually triggered, checkout the specified tag
-    secrets: inherit
+    secrets:
+      NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
 
   e2e-tests:
     needs: ci  # E2E tests run after CI passes
-    uses: ./.github/workflows/e2e-tests.yml
-    # e2e-tests.yml runs E2E tests with TEST environment secrets
+    # See the note on the ci job above; act rejects `$/`.
+    uses: ./.github/workflows/e2e-tests.yml  # zizmor: ignore[self-repository,secrets-inherit]
+    # The secrets-inherit marker sits on the uses: line because a JOB-level uses: only
+    # honours a trailing marker, not a comment above it.
+    #
+    # inherit is kept deliberately. e2e-tests.yml's job declares `environment: TEST` and
+    # reads TEST_GITHUB_TOKEN / TEST_GITEA_TOKEN, which exist ONLY as secrets of that
+    # environment (checked against the repository's environment secret list). They cannot
+    # be passed explicitly -- a job that calls a reusable workflow may not declare
+    # `environment:`, so in this caller they expand to the empty string. Dropping the
+    # block does not work either: in the sibling repo git-action-release, release run
+    # 33900517466 was built that way and logged its environment-backed token as empty,
+    # failing E2E; run 33901275784 with inherit passed.
     secrets: inherit
 
   release:
+    permissions:
+      contents: write   # creates the release and moves the floating tags
     needs: [ci, e2e-tests]  # REQUIRED: CI and E2E tests must pass before release
     runs-on: ubuntu-latest
     env:
       NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        # zizmor: ignore[artipacked] — the floating-tags step later in this job
+        # force-pushes vX/vX.Y using these persisted credentials; disabling them
+        # breaks the release, and only at release time. The floating-version action
+        # has no `token` input and no token handling in its src/ at all.
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0  # Full history for changelog generation
           ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Parse and validate version tag
         id: version
-        uses: LiquidLogicLabs/git-tag-validate-version-action@v2
+        # zizmor: ignore[unpinned-uses] — first-party action; no Renovate or
+        # Dependabot exists in these repos, so a SHA pin would freeze it and stop
+        # security fixes reaching us through @v2.
+        uses: LiquidLogicLabs/git-action-tag-validate-version@v2
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
           version-type: 'auto'
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
-          cache: 'npm'
+          # setup-node enables package-manager caching by default; a cache
+          # restored from a PR run must not reach a publishing job.
+          package-manager-cache: false
+          # This job installs git-platform-detector from the private Gitea registry, which
+          # returns 401 without a token. It previously had no registry configuration at all
+          # and only succeeded because `cache: 'npm'` happened to restore the tarball from
+          # an earlier run -- authentication by cache warmth. registry-url makes setup-node
+          # write the auth .npmrc to RUNNER_TEMP, never into the workspace.
+          registry-url: 'https://git.ravenwolf.org/api/packages/liquidlogiclabs/npm/'
+          scope: '@liquidlogiclabs'
 
       - name: Install dependencies
         run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
 
       - name: Build and package action
         run: npm run package
@@ -77,18 +115,21 @@ jobs:
 
       - name: Generate release notes
         id: release_notes
-        uses: mikepenz/release-changelog-builder-action@v6
+        uses: mikepenz/release-changelog-builder-action@cb021f9b36a51a7c6f18e4679b6fa2cb77a1260c # v6
         with:
           mode: "HYBRID"
           configurationJson: |
             {
-              "template": "#{{CHANGELOG}}\n\n<details>\n<summary>Pull Requests</summary>\n\n#{{PR_LIST}}\n</details>\n\n---\n\n### Usage\n\n```yaml\n- uses: LiquidLogicLabs/git-create-update-tag-action@${{ github.ref_name }}\n  with:\n    tag_name: 'v1.0.0'\n    tag_message: 'Release v1.0.0'\n```"
+              "template": "#{{CHANGELOG}}\n\n<details>\n<summary>Pull Requests</summary>\n\n#{{PR_LIST}}\n</details>\n\n---\n\n### Usage\n\n```yaml\n- uses: LiquidLogicLabs/git-action-tag-create-update@${{ github.ref_name }}\n  with:\n    tag_name: 'v1.0.0'\n    tag_message: 'Release v1.0.0'\n```"
             }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create/Update Major and Minor Version Tags
         if: steps.version.outputs.has-prerelease != 'true' && steps.version.outputs.is-valid == 'true'
+        # zizmor: ignore[unpinned-uses] — first-party action; no Renovate or
+        # Dependabot exists in these repos, so a SHA pin would freeze it and stop
+        # security fixes reaching us through @v2.
         uses: LiquidLogicLabs/git-action-tag-floating-version@v2
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
@@ -100,6 +141,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
+        # zizmor: ignore[unpinned-uses] — first-party action; no Renovate or
+        # Dependabot exists in these repos, so a SHA pin would freeze it and stop
+        # security fixes reaching us through @v2.
         uses: LiquidLogicLabs/git-action-release@v2
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
@@ -110,15 +154,25 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release Summary
+        env:
+          Z_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+          Z_REPOSITORY: ${{ github.repository }}
+          Z_EVENT_INPUTS_TAG_GITHUB_REF_NAME: ${{ github.event.inputs.tag || github.ref_name }}
+          Z_VERSION_OUTPUTS_HAS_PRERELEASE: ${{ steps.version.outputs.has-prerelease }}
+          Z_VERSION_OUTPUTS_MAJOR: ${{ steps.version.outputs.major }}
+          Z_VERSION_OUTPUTS_MINOR: ${{ steps.version.outputs.minor }}
+          Z_REF_NAME: ${{ github.ref_name }}
         run: |
-          echo "## 🎉 Release Complete!" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **GitHub Release**: [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.inputs.tag || github.ref_name }})" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.version.outputs.has-prerelease }}" == "true" ]; then
-            echo "- **Status**: ⚠️ Pre-release (for testing)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Status**: ✅ Stable release" >> $GITHUB_STEP_SUMMARY
-            echo "- **Version Tags Created**: \`@v${{ steps.version.outputs.major }}\`, \`@v${{ steps.version.outputs.major }}.${{ steps.version.outputs.minor }}\`, \`@${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          fi
+          {
+            echo "## 🎉 Release Complete!"
+            echo ""
+            echo "- **Version**: ${Z_VERSION_OUTPUTS_VERSION}"
+            echo "- **GitHub Release**: [View Release](https://github.com/${Z_REPOSITORY}/releases/tag/${Z_EVENT_INPUTS_TAG_GITHUB_REF_NAME})"
+            if [ "${Z_VERSION_OUTPUTS_HAS_PRERELEASE}" == "true" ]; then
+              echo "- **Status**: ⚠️ Pre-release (for testing)"
+            else
+              echo "- **Status**: ✅ Stable release"
+              echo "- **Version Tags Created**: \`@v${Z_VERSION_OUTPUTS_MAJOR}\`, \`@v${Z_VERSION_OUTPUTS_MAJOR}.${Z_VERSION_OUTPUTS_MINOR}\`, \`@${Z_REF_NAME}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
