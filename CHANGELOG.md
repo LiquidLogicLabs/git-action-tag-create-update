@@ -1,3 +1,12 @@
+## [2.0.7](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.6...v2.0.7) (2026-09-04)
+
+
+### Bug Fixes
+
+* reject tag names git would read as an option or a refspec ([3057fbd](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/3057fbd806a0ac173cda4a98b29f0ae030dc2c38))
+
+
+
 ## [2.0.6](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.5...v2.0.6) (2026-09-03)
 
 
