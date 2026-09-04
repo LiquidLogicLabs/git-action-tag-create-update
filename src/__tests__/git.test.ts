@@ -465,9 +465,11 @@ describe('pushTag', () => {
 
     await pushTag('v1.0.0', 'origin', 'token123', false, mockLogger);
 
+    // Fully qualified on both sides, deliberately. Pushing the bare tag name let a name
+    // like "+main" be parsed as a refspec and force-update the remote BRANCH.
     expect(exec.exec).toHaveBeenCalledWith(
       'git',
-      ['push', 'origin', 'v1.0.0'],
+      ['push', 'origin', 'refs/tags/v1.0.0:refs/tags/v1.0.0'],
       expect.any(Object)
     );
   });

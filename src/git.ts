@@ -5,6 +5,45 @@ import { Logger } from './logger';
 /**
  * Check if we're in a Git repository
  */
+/**
+ * Reject a value git would read as an option rather than as data.
+ *
+ * An argv array stops the SHELL interpreting a value; it does nothing about git's own
+ * option parser, which reads a leading "-" as an option wherever it appears. Some of those
+ * options execute commands. Verified against real git:
+ *
+ *   git push origin --delete '--receive-pack=touch /tmp/PWNED' v9   ->  the file is created
+ *
+ * (The trailing real ref is required: without it git aborts with "--delete doesn't make
+ * sense without any refs" and nothing runs.)
+ */
+export function assertNotOptionLike(value: string | undefined, label: string): void {
+  if (value !== undefined && value.startsWith('-')) {
+    throw new Error(
+      `Refusing to pass a ${label} beginning with "-" to git: ${JSON.stringify(value)}. ` +
+        'git would read it as an option, and options such as --upload-pack/--receive-pack execute commands.'
+    );
+  }
+}
+
+/**
+ * Reject a tag name git would read as a REFSPEC rather than as a ref.
+ *
+ * Distinct from the option check and not covered by it. `+` is the force prefix and `:`
+ * separates source from destination, so `git push origin '+main'` force-updates the remote
+ * BRANCH. `git check-ref-format` accepts `refs/tags/+main` and `git tag` creates it, so the
+ * value passes every other check — verified against real git, the remote branch moved to
+ * the local HEAD.
+ */
+export function assertNotRefspecLike(value: string, label: string): void {
+  if (value.startsWith('+') || value.includes(':')) {
+    throw new Error(
+      `Refusing to pass a ${label} that git would read as a refspec: ${JSON.stringify(value)}. ` +
+        '"+" forces and ":" separates source from destination, so this could update a branch instead of a tag.'
+    );
+  }
+}
+
 export async function isGitRepository(_logger: Logger): Promise<boolean> {
   try {
     const exitCode = await exec.exec('git', ['rev-parse', '--git-dir'], {
@@ -64,6 +103,9 @@ export async function ensureGitUserConfig(
   userName?: string,
   userEmail?: string
 ): Promise<boolean> {
+  assertNotOptionLike(userName, 'git user name');
+  assertNotOptionLike(userEmail, 'git user email');
+
   // Check if git config is already set
   let nameSet = false;
   let emailSet = false;
@@ -180,6 +222,13 @@ export async function createTag(
 ): Promise<TagResult> {
   const { tagName, sha, message, gpgSign, gpgKeyId, gitUserName, gitUserEmail } =
     options;
+
+  assertNotOptionLike(tagName, 'tag name');
+  assertNotRefspecLike(tagName, 'tag name');
+  assertNotOptionLike(sha, 'SHA');
+  assertNotOptionLike(gpgKeyId, 'GPG key id');
+  assertNotOptionLike(gitUserName, 'git user name');
+  assertNotOptionLike(gitUserEmail, 'git user email');
 
   logger.info(`Creating tag: ${tagName} at ${sha}`);
 
@@ -302,6 +351,10 @@ export async function pushTag(
   force: boolean,
   logger: Logger
 ): Promise<void> {
+  assertNotOptionLike(tagName, 'tag name');
+  assertNotRefspecLike(tagName, 'tag name');
+  assertNotOptionLike(remote, 'remote name');
+
   logger.info(`Pushing tag ${tagName} to ${remote}`);
 
   // Configure Git with token if provided
@@ -316,7 +369,9 @@ export async function pushTag(
     }
   }
 
-  const pushArgs = ['push', remote, tagName];
+  // Fully qualified on both sides: a tag name can then never be parsed as a refspec,
+  // independent of the guard above. Defence in depth, not a replacement for it.
+  const pushArgs = ['push', remote, `refs/tags/${tagName}:refs/tags/${tagName}`];
   if (force) {
     pushArgs.push('--force');
   }
@@ -375,6 +430,9 @@ export async function deleteTagLocally(
   tagName: string,
   logger: Logger
 ): Promise<void> {
+  assertNotOptionLike(tagName, 'tag name');
+  assertNotRefspecLike(tagName, 'tag name');
+
   logger.info(`Deleting local tag: ${tagName}`);
   await exec.exec('git', ['tag', '-d', tagName], {
     silent: true,
@@ -391,6 +449,10 @@ export async function deleteTagRemote(
   token: string | undefined,
   logger: Logger
 ): Promise<void> {
+  assertNotOptionLike(tagName, 'tag name');
+  assertNotRefspecLike(tagName, 'tag name');
+  assertNotOptionLike(remote, 'remote name');
+
   logger.info(`Deleting remote tag: ${tagName} from ${remote}`);
 
   // Configure Git with token if provided
