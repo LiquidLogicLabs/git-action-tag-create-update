@@ -1,3 +1,9 @@
+## [2.0.10](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.9...v2.0.10) (2026-09-08)
+
+
+### Features
+
+* consume @liquidlogiclabs/git-platform-detector from npmjs ([e0296a0](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/e0296a0b4ee7edc978663d69e3231bb68f0de88d))
 ## [2.0.9](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.8...v2.0.9) (2026-09-04)
 
 
