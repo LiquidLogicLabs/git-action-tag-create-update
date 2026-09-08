@@ -107,7 +107,7 @@ jobs:
           mode: "HYBRID"
           configurationJson: |
             {
-              "template": "#{{CHANGELOG}}\n\n<details>\n<summary>Pull Requests</summary>\n\n#{{PR_LIST}}\n</details>\n\n---\n\n### Usage\n\n```yaml\n- uses: LiquidLogicLabs/git-action-tag-create-update@${{ github.ref_name }}\n  with:\n    tag_name: 'v1.0.0'\n    tag_message: 'Release v1.0.0'\n```"
+              "template": "#{{CHANGELOG}}\n\n---\n\n### Usage\n\n```yaml\n- uses: LiquidLogicLabs/git-action-tag-create-update@${{ github.ref_name }}\n  with:\n    tag-name: 'v1.0.0'\n    tag-message: 'Release v1.0.0'\n```"
             }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
