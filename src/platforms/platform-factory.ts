@@ -1,7 +1,7 @@
 import * as exec from '@actions/exec';
 import { RepoType, RepositoryInfo, PlatformAPI, PlatformConfig } from '../types';
 import { Logger } from '../logger';
-import { createByName, detectPlatform, getBuiltInProviders } from 'git-platform-detector';
+import { createByName, detectPlatform, getBuiltInProviders } from '@liquidlogiclabs/git-platform-detector';
 import { GitHubAPI, determineBaseUrl as determineGithubBaseUrl } from './github';
 import { GiteaAPI, determineBaseUrl as determineGiteaBaseUrl } from './gitea';
 import { BitbucketAPI, determineBaseUrl as determineBitbucketBaseUrl } from './bitbucket';

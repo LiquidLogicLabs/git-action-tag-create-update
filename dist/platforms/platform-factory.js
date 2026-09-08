@@ -35,7 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createPlatformAPI = createPlatformAPI;
 const exec = __importStar(require("@actions/exec"));
-const git_platform_detector_1 = require("git-platform-detector");
+const git_platform_detector_1 = require("@liquidlogiclabs/git-platform-detector");
 const github_1 = require("./github");
 const gitea_1 = require("./gitea");
 const bitbucket_1 = require("./bitbucket");

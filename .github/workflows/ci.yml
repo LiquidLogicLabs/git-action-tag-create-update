@@ -9,12 +9,6 @@ on:
     paths-ignore: ['**/*.md']
     branches: ['**']
   workflow_call:  # Allow CI to be called by release workflow
-    secrets:
-      NPM_REGISTRY_TOKEN:
-        # Declared so a caller can pass it explicitly. Without this declaration GitHub
-        # rejects `secrets: {NPM_REGISTRY_TOKEN: ...}` at parse time, which is why
-        # `secrets: inherit` was used -- it works without a declaration.
-        required: false
   workflow_dispatch:  # Allow manual triggering
 
 # Note: When called by release workflow, CI will run on the tag ref
@@ -45,32 +39,15 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node.js
-        # registry-url makes setup-node write the auth .npmrc to RUNNER_TEMP, not the
-        # workspace. Never append a token to a workspace .npmrc: act bind-mounts the
-        # repo directory and never truncates it, which is how a live token reached a
-        # public repo. Auth is supplied per-step via NODE_AUTH_TOKEN.
-        #
-        # scope is REQUIRED even though git-platform-detector is unscoped. Without it
-        # setup-node writes a bare `registry=<gitea>` line, making Gitea the DEFAULT
-        # registry; npm then rewrites every public package's resolved URL to that host
-        # and `npm ci` dies with 404s (e.g. yocto-queue). With scope it writes
-        # `@liquidlogiclabs:registry=<gitea>` instead, leaving the default registry as
-        # npmjs. The private dep is a raw HTTPS tarball, so it needs no scope routing —
-        # only the host-scoped `//git.ravenwolf.org/...:_authToken` line, which npm
-        # applies to a direct tarball fetch on that host.
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
           # setup-node enables package-manager caching by default; a cache
           # restored from a PR run must not reach a publishing job.
           package-manager-cache: false
-          registry-url: 'https://git.ravenwolf.org/api/packages/liquidlogiclabs/npm/'
-          scope: '@liquidlogiclabs'
 
       - name: Install dependencies
         run: npm ci
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
 
       - name: Run linter
         run: npm run lint
@@ -152,7 +129,5 @@ jobs:
     needs: lint  # Tests run after lint
     # act 0.2.89 rejects `$/`; see the note in release.yml. Marker must be on this line.
     uses: ./.github/workflows/test.yml  # zizmor: ignore[self-repository]
-    secrets:
-      NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
     # test.yml runs: unit tests + integration tests (all tests except E2E)
 
