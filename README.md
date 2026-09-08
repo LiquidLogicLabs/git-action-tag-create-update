@@ -1,4 +1,4 @@
-# Git Create/Update Tag Action
+# Git Create/Update Tag
 
 [![CI](https://github.com/LiquidLogicLabs/git-action-tag-create-update/actions/workflows/ci.yml/badge.svg)](https://github.com/LiquidLogicLabs/git-action-tag-create-update/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -24,7 +24,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create tag
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     tag-message: 'Release version 1.0.0'
@@ -34,7 +34,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create annotated tag
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     tag-message: 'Release version 1.0.0'
@@ -45,7 +45,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create lightweight tag
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     # No tagMessage = lightweight tag
@@ -55,7 +55,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Update existing tag
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1'
     tag-message: 'Updated major version tag'
@@ -66,7 +66,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create GPG signed tag
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     tag-message: 'Release version 1.0.0'
@@ -78,7 +78,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create GitHub tag
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     tag-message: 'Release version 1.0.0'
@@ -91,7 +91,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create Gitea tag
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     tag-message: 'Release version 1.0.0'
@@ -106,7 +106,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create Bitbucket tag
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     tag-message: 'Release version 1.0.0'
@@ -119,7 +119,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create tag on remote repository
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     tag-message: 'Release version 1.0.0'
@@ -132,7 +132,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create tag locally without pushing
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     tag-message: 'Release version 1.0.0'
@@ -143,7 +143,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create tag with custom git user
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     tag-message: 'Release version 1.0.0'
@@ -155,7 +155,7 @@ A GitHub Action that creates or updates Git tags on local or remote repositories
 
 ```yaml
 - name: Create tag with verbose logging
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     tag-message: 'Release version 1.0.0'
@@ -229,7 +229,7 @@ For annotated tags, Git requires `user.name` and `user.email` to be configured. 
   - `GITHUB_ACTOR` or `GITEA_ACTOR` for user name
   - Constructs email from actor and server URL:
     - **GitHub**: `actor@users.noreply.github.com` (or `actor@users.noreply.{hostname}` for GitHub Enterprise)
-    - **Gitea**: `actor@noreply.{hostname}` (e.g., `actor@noreply.git.ravenwolf.org`)
+    - **Gitea**: `actor@noreply.{hostname}` (e.g., `actor@noreply.gitea.example.com`)
     - **Other platforms**: `actor@noreply.{hostname}`
 - **Manual override**: You can provide `git-user-name` and `git-user-email` inputs to override auto-detection
 - **Local config fallback**: If git user is already configured locally, it uses those values
@@ -263,7 +263,7 @@ If you're using self-signed certificates, set `skip-certificate-check: true`.
 Enable verbose logging to troubleshoot issues:
 
 ```yaml
-- uses: LiquidLogicLabs/git-action-tag-create-update@v1
+- uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: 'v1.0.0'
     verbose: true
@@ -313,7 +313,7 @@ jobs:
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
       - name: Create release tag
-        uses: LiquidLogicLabs/git-action-tag-create-update@v1
+        uses: LiquidLogicLabs/git-action-tag-create-update@v2
         with:
           tag-name: v${{ steps.version.outputs.version }}
           tag-message: Release version ${{ steps.version.outputs.version }}
@@ -324,7 +324,7 @@ jobs:
 
 ```yaml
 - name: Create/update major version tag
-  uses: LiquidLogicLabs/git-action-tag-create-update@v1
+  uses: LiquidLogicLabs/git-action-tag-create-update@v2
   with:
     tag-name: v1
     tag-message: Major version 1
