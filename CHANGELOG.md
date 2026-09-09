@@ -1,3 +1,11 @@
+## [2.0.11](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.10...v2.0.11) (2026-09-09)
+
+
+### Bug Fixes
+
+* **release-notes:** categorise revert commits under Maintenance ([83495ba](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/83495ba45154343166077296ee152e999bce6d0a))
+* **release-notes:** categorise the changelog by conventional-commit type ([4e66860](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/4e6686039a525717f2f22b8e1c593b3bb240da49))
+* **release-notes:** drop the dead PR_LIST placeholder ([2b80182](https://github.com/LiquidLogicLabs/git-action-tag-create-update/commit/2b801822df08ca7cbb4a34a5f22b7bf71ae99627))
 ## [2.0.10](https://github.com/LiquidLogicLabs/git-action-tag-create-update/compare/v2.0.9...v2.0.10) (2026-09-08)
 
 
