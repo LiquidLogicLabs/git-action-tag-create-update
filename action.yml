@@ -1,5 +1,5 @@
 name: 'Git Create/Update Tag'
-description: 'Create or update Git tags on local or remote repositories. Supports GitHub, Gitea, Bitbucket, and generic Git hosts with optional GPG signing.'
+description: 'Create or update git tags locally or on GitHub, Gitea and Bitbucket, with optional GPG signing.'
 author: 'LiquidLogicLabs'
 inputs:
   tag-name:
