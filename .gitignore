@@ -33,7 +33,6 @@ coverage/
 .nyc_output/
 
 # AI Tools
-.bmad-core/
 .github/chatmodes/
 
 # act local testing files (do not commit secrets)
@@ -49,3 +48,4 @@ coverage/
 
 # npm registry auth (keep local; do not commit credentials)
 .npmrc
+_bmad-output/
